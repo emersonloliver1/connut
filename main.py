@@ -11,7 +11,9 @@ from dotenv import load_dotenv
 load_dotenv()  # Carrega as variáveis de ambiente do arquivo .env
 
 app = Flask(__name__, static_folder='assets', static_url_path='/assets')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
+
+# Use SQLite se DATABASE_URL não estiver definido
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///test.db')
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'sua_chave_secreta_aqui')
 db = SQLAlchemy(app)
 login_manager = LoginManager()
@@ -132,9 +134,8 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
-# Adicione este bloco no final do arquivo
-with app.app_context():
-    db.create_all()
-
+# Mova esta parte para dentro do if __name__ == '__main__':
 if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))

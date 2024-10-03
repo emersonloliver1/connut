@@ -27,6 +27,9 @@ RUN chown -R appuser:appuser /app
 # Muda para o usuário não-root
 USER appuser
 
+# Instala o cliente PostgreSQL
+RUN apt-get update && apt-get install -y postgresql-client
+
 # Expõe a porta que a aplicação vai usar
 EXPOSE 8080
 
