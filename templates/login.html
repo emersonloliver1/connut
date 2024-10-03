@@ -57,25 +57,27 @@
     <div class="container">
         <img src="{{ url_for('static', filename='logo.jpg') }}" alt="CONNUT Logo" class="logo">
         
-        <form id="loginForm">
+        <form id="loginForm" action="{{ url_for('login') }}" method="post">
             <h3>Login</h3>
-            <input type="email" placeholder="Email" required>
-            <input type="password" placeholder="Senha" required>
+            <input type="email" name="email" placeholder="Email" required>
+            <input type="password" name="password" placeholder="Senha" required>
             <button type="submit">Entrar</button>
         </form>
 
-        <form id="registerForm" style="display:none;">
+        <form id="registerForm" action="{{ url_for('cadastro') }}" method="post" style="display:none;">
             <h3>Cadastro</h3>
-            <input type="text" placeholder="Nome" required>
-            <input type="email" placeholder="Email" required>
-            <input type="password" placeholder="Senha" required>
-            <input type="password" placeholder="Confirmar Senha" required>
+            <input type="text" name="name" placeholder="Nome" required>
+            <input type="email" name="email" placeholder="Email" required>
+            <input type="password" name="password" placeholder="Senha" required>
+            <input type="password" name="confirm_password" placeholder="Confirmar Senha" required>
             <button type="submit">Cadastrar</button>
         </form>
 
         <p id="switchForm" style="text-align: center; cursor: pointer; color: blue;">
             Não tem uma conta? Cadastre-se
         </p>
+
+        <a href="{{ url_for('google_login') }}" class="google-btn">Login com Google</a>
     </div>
 
     <script>
