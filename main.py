@@ -5,6 +5,7 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from werkzeug.security import generate_password_hash, check_password_hash
 from oauthlib.oauth2 import WebApplicationClient
 import requests
+import json
 from dotenv import load_dotenv
 
 load_dotenv()  # Carrega as variáveis de ambiente do arquivo .env
@@ -130,6 +131,10 @@ def index():
 def logout():
     logout_user()
     return redirect(url_for('login'))
+
+# Adicione este bloco no final do arquivo
+with app.app_context():
+    db.create_all()
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
