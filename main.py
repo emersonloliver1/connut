@@ -5,18 +5,21 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from werkzeug.security import generate_password_hash, check_password_hash
 from oauthlib.oauth2 import WebApplicationClient
 import requests
+from dotenv import load_dotenv
+
+load_dotenv()  # Carrega as variáveis de ambiente do arquivo .env
 
 app = Flask(__name__, static_folder='assets', static_url_path='/assets')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'  # Você pode mudar para PostgreSQL mais tarde
-app.config['SECRET_KEY'] = 'sua_chave_secreta_aqui'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'sua_chave_secreta_aqui')
 db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
 # Configuração do Google OAuth
-GOOGLE_CLIENT_ID = os.environ.get("470513516228-gccbp5t4d8tgco8r74cjnrg8bpf4oq55.apps.googleusercontent.com", None)
-GOOGLE_CLIENT_SECRET = os.environ.get("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", None)
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 GOOGLE_DISCOVERY_URL = "https://accounts.google.com/.well-known/openid-configuration"
 
 client = WebApplicationClient(GOOGLE_CLIENT_ID)
