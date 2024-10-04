@@ -134,7 +134,7 @@ def index():
         {"icon": "📊", "text": "Avaliações"},
         {"icon": "💬", "text": "Atendimentos"},
         {"icon": "📄", "text": "Laudos"},
-        {"icon": "❓", "text": "Ajuda"}
+        {"icon": "❓", "text": "Ajuda"
     ]
     return render_template('index.html', menu_items=menu_items)
 
