@@ -12,12 +12,16 @@ load_dotenv()  # Carrega as variáveis de ambiente do arquivo .env
 
 app = Flask(__name__, static_folder='assets', static_url_path='/assets')
 
-# Configuração do banco de dados
-database_url = os.getenv('DATABASE_URL')
-if database_url and database_url.startswith("postgres://"):
-    database_url = database_url.replace("postgres://", "postgresql://", 1)
+# Configuração do banco de dados Cloud SQL
+db_user = os.environ.get('DB_USER')
+db_pass = os.environ.get('DB_PASS')
+db_name = os.environ.get('DB_NAME')
+cloud_sql_connection_name = os.environ.get('CLOUD_SQL_CONNECTION_NAME')
 
-app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///test.db'
+# Configurar a string de conexão do banco de dados
+database_url = f"postgresql://{db_user}:{db_pass}@/{db_name}?host=/cloudsql/{cloud_sql_connection_name}"
+
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'sua_chave_secreta_aqui')
 
