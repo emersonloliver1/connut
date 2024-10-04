@@ -5,6 +5,11 @@ FROM python:3.9-slim
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
+# Instala as dependências do sistema e o cliente PostgreSQL
+RUN apt-get update && apt-get install -y \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
 # Define o diretório de trabalho no container
 WORKDIR /app
 
@@ -26,9 +31,6 @@ RUN chown -R appuser:appuser /app
 
 # Muda para o usuário não-root
 USER appuser
-
-# Instala o cliente PostgreSQL
-RUN apt-get update && apt-get install -y postgresql-client
 
 # Expõe a porta que a aplicação vai usar
 EXPOSE 8080
