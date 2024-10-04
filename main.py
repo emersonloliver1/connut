@@ -12,9 +12,15 @@ load_dotenv()  # Carrega as variáveis de ambiente do arquivo .env
 
 app = Flask(__name__, static_folder='assets', static_url_path='/assets')
 
-# Use SQLite se DATABASE_URL não estiver definido
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///test.db')
+# Configuração do banco de dados
+database_url = os.getenv('DATABASE_URL')
+if database_url and database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///test.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'sua_chave_secreta_aqui')
+
 db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
