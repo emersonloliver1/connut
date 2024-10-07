@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clientes - CONNUT</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        h1 {
+            margin: 0;
+        }
+        .content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .search-bar {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        .search-bar input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px 0 0 4px;
+        }
+        .search-bar button, .cadastro-btn, .voltar-btn {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .search-bar button {
+            border-radius: 0 4px 4px 0;
+        }
+        .cadastro-btn, .voltar-btn {
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        .search-bar button:hover, .cadastro-btn:hover, .voltar-btn:hover {
+            background-color: #45a049;
+        }
+        .cadastro-form {
+            display: none;
+            margin-top: 20px;
+            background-color: #f9f9f9;
+            padding: 20px;
+            border-radius: 4px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .form-group.inline {
+            display: flex;
+            align-items: center;
+        }
+        .form-group.inline label {
+            margin-right: 10px;
+        }
+        .cliente-list {
+            margin-top: 20px;
+        }
+        .cliente-item {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            transition: box-shadow 0.3s;
+        }
+        .cliente-item:hover {
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .cliente-item h3 {
+            margin-top: 0;
+            color: #4CAF50;
+        }
+        .actions {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Clientes CONNUT</h1>
+    </header>
+    <div class="container">
+        <div class="content">
+            <div class="actions">
+                <button class="voltar-btn" onclick="window.location.href='{{ url_for('index') }}'">Voltar para o Menu</button>
+                <button class="cadastro-btn" onclick="toggleCadastroForm()">Cadastrar Novo Cliente</button>
+            </div>
+            <div class="search-bar">
+                <input type="text" id="searchCliente" placeholder="Pesquisar cliente...">
+                <button onclick="searchClientes()">Buscar</button>
+            </div>
+            
+            <div id="clienteList" class="cliente-list">
+                {% for cliente in clientes %}
+                <div class="cliente-item">
+                    <h3>{{ cliente.nome }}</h3>
+                    <p><strong>{{ cliente.tipo_pessoa }}:</strong> {{ cliente.documento }}</p>
+                    <p><strong>Telefone:</strong> {{ cliente.telefone }}</p>
+                    <p><strong>Endereço:</strong> {{ cliente.endereco }}, {{ cliente.numero }} - {{ cliente.cidade }}/{{ cliente.estado }}</p>
+                </div>
+                {% endfor %}
+            </div>
+
+            <form id="cadastroForm" class="cadastro-form" method="POST">
+                <div class="form-group">
+                    <label for="nome">Nome:</label>
+                    <input type="text" id="nome" name="nome" required>
+                </div>
+                <div class="form-group inline">
+                    <label>Tipo de Pessoa:</label>
+                    <input type="radio" id="pessoaFisica" name="tipoPessoa" value="fisica" checked onchange="toggleDocumento()">
+                    <label for="pessoaFisica">Física</label>
+                    <input type="radio" id="pessoaJuridica" name="tipoPessoa" value="juridica" onchange="toggleDocumento()">
+                    <label for="pessoaJuridica">Jurídica</label>
+                </div>
+                <div class="form-group">
+                    <label for="documento" id="documentoLabel">CPF:</label>
+                    <input type="text" id="documento" name="documento" required>
+                </div>
+                <div class="form-group">
+                    <label for="telefone">Contato:</label>
+                    <input type="tel" id="telefone" name="telefone" placeholder="xx xxxxx-xxxx" required>
+                </div>
+                <div class="form-group">
+                    <label for="cep">CEP:</label>
+                    <input type="text" id="cep" name="cep" placeholder="xxxxx-xxx" required>
+                </div>
+                <div class="form-group">
+                    <label for="endereco">Endereço:</label>
+                    <input type="text" id="endereco" name="endereco" required>
+                </div>
+                <div class="form-group">
+                    <label for="numero">Nº:</label>
+                    <input type="text" id="numero" name="numero" required>
+                </div>
+                <div class="form-group">
+                    <label for="complemento">Complemento:</label>
+                    <input type="text" id="complemento" name="complemento">
+                </div>
+                <div class="form-group">
+                    <label for="cidade">Cidade:</label>
+                    <input type="text" id="cidade" name="cidade" required>
+                </div>
+                <div class="form-group">
+                    <label for="estado">Estado:</label>
+                    <input type="text" id="estado" name="estado" required>
+                </div>
+                <button type="submit">Cadastrar Cliente</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function toggleCadastroForm() {
+            const form = document.getElementById('cadastroForm');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function toggleDocumento() {
+            const tipoDocumento = document.querySelector('input[name="tipoPessoa"]:checked').value;
+            const documentoLabel = document.getElementById('documentoLabel');
+            const documentoInput = document.getElementById('documento');
+            
+            if (tipoDocumento === 'fisica') {
+                documentoLabel.textContent = 'CPF:';
+                documentoInput.placeholder = '111.111.111-00';
+            } else {
+                documentoLabel.textContent = 'CNPJ:';
+                documentoInput.placeholder = '11.111.111/0001-00';
+            }
+            documentoInput.value = ''; // Limpa o campo ao mudar o tipo
+        }
+
+        function formatTelefone(input) {
+            let value = input.value.replace(/\D/g, '');
+            if (value.length > 0) {
+                value = value.replace(/^(\d{2})(\d{0,5})(\d{0,4})$/, function(match, p1, p2, p3) {
+                    if (p3) return `${p1} ${p2}-${p3}`;
+                    if (p2) return `${p1} ${p2}`;
+                    return p1;
+                });
+            }
+            input.value = value;
+        }
+
+        function formatCEP(input) {
+            let value = input.value.replace(/\D/g, '');
+            if (value.length > 5) {
+                value = value.substring(0, 8); // Limita a 8 dígitos
+                value = value.replace(/^(\d{5})(\d{0,3})$/, "$1-$2");
+            }
+            input.value = value;
+        }
+
+        async function buscarCEP(cep) {
+            try {
+                const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+                const data = await response.json();
+                if (!data.erro) {
+                    document.getElementById('endereco').value = data.logradouro;
+                    document.getElementById('cidade').value = data.localidade;
+                    document.getElementById('estado').value = data.uf;
+                }
+            } catch (error) {
+                console.error('Erro ao buscar CEP:', error);
+            }
+        }
+
+        document.getElementById('telefone').addEventListener('input', function() {
+            formatTelefone(this);
+        });
+
+        document.getElementById('cep').addEventListener('input', function() {
+            formatCEP(this);
+        });
+
+        document.getElementById('cep').addEventListener('blur', function() {
+            const cep = this.value.replace(/\D/g, '');
+            if (cep.length === 8) {
+                buscarCEP(cep);
+            } else {
+                // Limpa os campos de endereço se o CEP for inválido
+                document.getElementById('endereco').value = '';
+                document.getElementById('cidade').value = '';
+                document.getElementById('estado').value = '';
+                alert('CEP inválido. Por favor, insira um CEP válido com 8 dígitos.');
+            }
+        });
+
+        function formatDocumento(input) {
+            let value = input.value.replace(/\D/g, '');
+            const tipoDocumento = document.querySelector('input[name="tipoPessoa"]:checked').value;
+            
+            if (tipoDocumento === 'fisica') {
+                // Formata CPF: 111.111.111-00
+                if (value.length <= 11) {
+                    value = value.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+                }
+            } else {
+                // Formata CNPJ: 11.111.111/0001-00
+                if (value.length <= 14) {
+                    value = value.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5");
+                }
+            }
+            
+            input.value = value;
+        }
+
+        document.getElementById('documento').addEventListener('input', function() {
+            formatDocumento(this);
+        });
+
+        function searchClientes() {
+            const searchTerm = document.getElementById('searchCliente').value;
+            fetch(`/buscar_clientes?termo=${searchTerm}`)
+                .then(response => response.json())
+                .then(clientes => {
+                    const clienteList = document.getElementById('clienteList');
+                    clienteList.innerHTML = '';
+                    clientes.forEach(cliente => {
+                        const clienteItem = document.createElement('div');
+                        clienteItem.className = 'cliente-item';
+                        clienteItem.innerHTML = `
+                            <h3>${cliente.nome}</h3>
+                            <p>${cliente.documento}</p>
+                        `;
+                        clienteList.appendChild(clienteItem);
+                    });
+                });
+        }
+
+        document.getElementById('cadastroForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            fetch('/clientes', {
+                method: 'POST',
+                body: formData
+            }).then(response => {
+                if (response.ok) {
+                    alert('Cliente cadastrado com sucesso!');
+                    window.location.reload();
+                } else {
+                    alert('Erro ao cadastrar cliente.');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

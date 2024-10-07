@@ -1,34 +1,34 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CONNUT - Login e Cadastro</title>
+    <title>Login - CONNUT</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #fdf2f2;
-            color: rgb(14, 8, 8);
-            margin: 0;
-            padding: 20px;
+            background-color: #f0f0f0;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
+            margin: 0;
         }
-        .container {
+        .login-container {
             background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            text-align: center;
+            padding: 2rem;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            width: 300px;
         }
         .logo {
+            display: block;
+            margin: 0 auto 20px;
             max-width: 200px;
-            margin-bottom: 20px;
         }
         h2 {
             text-align: center;
+            color: #333;
         }
         form {
             display: flex;
@@ -36,7 +36,7 @@
         }
         input {
             margin: 10px 0;
-            padding: 8px;
+            padding: 10px;
             border: 1px solid #ddd;
             border-radius: 4px;
         }
@@ -47,55 +47,52 @@
             border: none;
             border-radius: 4px;
             cursor: pointer;
+            margin-top: 10px;
         }
         button:hover {
             background-color: #45a049;
         }
+        .register-link {
+            text-align: center;
+            margin-top: 15px;
+        }
+        .flash-messages {
+            list-style-type: none;
+            padding: 0;
+            margin: 0 0 15px 0;
+        }
+        .flash-message {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="login-container">
         <img src="{{ url_for('static', filename='logo.jpg') }}" alt="CONNUT Logo" class="logo">
-        
-        <form id="loginForm" action="{{ url_for('login') }}" method="post">
-            <h3>Login</h3>
+        <h2>Login</h2>
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <ul class="flash-messages">
+                    {% for message in messages %}
+                        <li class="flash-message">{{ message }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+        <form method="POST">
             <input type="email" name="email" placeholder="Email" required>
             <input type="password" name="password" placeholder="Senha" required>
             <button type="submit">Entrar</button>
         </form>
-
-        <form id="registerForm" action="{{ url_for('cadastro') }}" method="post" style="display:none;">
-            <h3>Cadastro</h3>
-            <input type="text" name="name" placeholder="Nome" required>
-            <input type="email" name="email" placeholder="Email" required>
-            <input type="password" name="password" placeholder="Senha" required>
-            <input type="password" name="confirm_password" placeholder="Confirmar Senha" required>
-            <button type="submit">Cadastrar</button>
-        </form>
-
-        <p id="switchForm" style="text-align: center; cursor: pointer; color: blue;">
-            Não tem uma conta? Cadastre-se
-        </p>
-
-        <a href="{{ url_for('google_login') }}" class="google-btn">Login com Google</a>
+        <div class="register-link">
+            <p>Não tem uma conta? <a href="{{ url_for('register') }}">Cadastre-se</a></p>
+        </div>
     </div>
-
-    <script>
-        const loginForm = document.getElementById('loginForm');
-        const registerForm = document.getElementById('registerForm');
-        const switchForm = document.getElementById('switchForm');
-
-        switchForm.addEventListener('click', () => {
-            if (loginForm.style.display !== 'none') {
-                loginForm.style.display = 'none';
-                registerForm.style.display = 'block';
-                switchForm.textContent = 'Já tem uma conta? Faça login';
-            } else {
-                loginForm.style.display = 'block';
-                registerForm.style.display = 'none';
-                switchForm.textContent = 'Não tem uma conta? Cadastre-se';
-            }
-        });
-    </script>
 </body>
 </html>
