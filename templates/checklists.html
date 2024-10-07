@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checklists - CONNUT</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <header class="bg-green-600 text-white p-4 flex items-center">
+        <img src="{{ url_for('static', filename='logo.jpg') }}" alt="CONNUT Logo" class="h-12 w-12 rounded-full mr-4">
+        <h1 class="text-2xl font-bold">Checklists</h1>
+    </header>
+    <div class="container mx-auto p-4">
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800">Selecione um Checklist</h2>
+            <div class="space-y-4">
+                <button onclick="openChecklist('rdc216')" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded transition duration-300">
+                    CHECKLIST RDC 216
+                </button>
+                <button onclick="openChecklist('higienico-sanitario')" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded transition duration-300">
+                    CHECKLIST HIGIÊNICO SANITÁRIO
+                </button>
+            </div>
+            <a href="{{ url_for('index') }}" class="inline-block mt-6 bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition duration-300">
+                Voltar para o Menu Principal
+            </a>
+        </div>
+    </div>
+
+    <script>
+        function openChecklist(type) {
+            // Aqui você pode adicionar a lógica para abrir o checklist selecionado
+            // Por exemplo, redirecionar para uma nova página ou abrir um modal
+            alert(`Abrindo ${type === 'rdc216' ? 'CHECKLIST RDC 216' : 'CHECKLIST HIGIÊNICO SANITÁRIO'}`);
+            // Exemplo de redirecionamento:
+            // window.location.href = `/checklist/${type}`;
+        }
+    </script>
+</body>
+</html>

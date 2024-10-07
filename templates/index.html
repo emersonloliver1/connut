@@ -4,97 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f0f0f0;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        header {
-            background-color: #4CAF50;
-            color: white;
-            padding: 10px 0;
-            display: flex;
-            align-items: center;
-            justify-content: flex-start;
-        }
-        .logo {
-            max-height: 50px;
-            margin-right: 20px;
-            margin-left: 20px;
-            border-radius: 50%;
-        }
-        h1 {
-            margin: 0;
-            flex-grow: 1;
-        }
-        .menu {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 20px;
-            margin-top: 20px;
-        }
-        .menu-item {
-            background-color: white;
-            border-radius: 5px;
-            padding: 20px;
-            text-align: center;
-            width: 150px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            transition: transform 0.3s ease;
-        }
-        .menu-item:hover {
-            transform: translateY(-5px);
-        }
-        .menu-item i {
-            font-size: 24px;
-            margin-bottom: 10px;
-        }
-        .logout {
-            text-align: right;
-            margin-top: 20px;
-        }
-        .logout a {
-            color: #4CAF50;
-            text-decoration: none;
-        }
-    </style>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-    <header>
-        <img src="{{ url_for('static', filename='logo.jpg') }}" alt="CONNUT Logo" class="logo">
-        <h1>Dashboard</h1>
+<body class="bg-gray-100">
+    <header class="bg-green-600 text-white p-4 flex items-center">
+        <img src="{{ url_for('static', filename='logo.jpg') }}" alt="CONNUT Logo" class="h-12 w-12 rounded-full mr-4">
+        <h1 class="text-2xl font-bold">Dashboard</h1>
     </header>
-    <div class="container">
-        <div class="menu">
+    <div class="container mx-auto p-4">
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {% for item in menu_items %}
-            <div class="menu-item">
-                {% if item.text == "Dashboard" %}
-                    <a href="{{ url_for('dashboard') }}">
-                        <i>{{ item.icon }}</i>
-                        <p>{{ item.text }}</p>
-                    </a>
-                {% elif item.text == "Clientes" %}
-                    <a href="{{ url_for('clientes') }}">
-                        <i>{{ item.icon }}</i>
-                        <p>{{ item.text }}</p>
-                    </a>
-                {% else %}
-                    <i>{{ item.icon }}</i>
-                    <p>{{ item.text }}</p>
-                {% endif %}
-            </div>
+            <a href="{{ item.url }}" class="bg-white p-4 rounded-lg shadow-md flex flex-col items-center justify-center hover:bg-gray-50 transition-colors">
+                <span class="text-4xl mb-2">{{ item.icon }}</span>
+                <span class="text-center">{{ item.text }}</span>
+            </a>
             {% endfor %}
         </div>
-        <div class="logout">
-            <a href="{{ url_for('logout') }}">Sair</a>
+        <div class="text-right mt-6">
+            <a href="{{ url_for('logout') }}" class="text-green-600 hover:text-green-800">Sair</a>
         </div>
     </div>
 </body>

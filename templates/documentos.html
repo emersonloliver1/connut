@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentos - CONNUT</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <header class="bg-green-600 text-white p-4 flex items-center">
+        <img src="{{ url_for('static', filename='logo.jpg') }}" alt="CONNUT Logo" class="h-12 w-12 rounded-full mr-4">
+        <h1 class="text-2xl font-bold">Documentos</h1>
+    </header>
+    <div class="container mx-auto p-4">
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="flex justify-between mb-6">
+                <a href="{{ url_for('index') }}" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded">Voltar para o Menu</a>
+                <button onclick="showUploadForm()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">Adicionar Documento</button>
+            </div>
+            <div id="uploadForm" class="hidden bg-gray-50 p-6 rounded-lg mb-6">
+                <h3 class="text-xl font-bold mb-4">Upload de Documento</h3>
+                <form id="documentUploadForm" class="space-y-4">
+                    <div>
+                        <label for="clienteSelect" class="block mb-2 font-bold">Cliente:</label>
+                        <select id="clienteSelect" required class="w-full p-2 border border-gray-300 rounded">
+                            <option value="">Selecione um cliente</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="documentFile" class="block mb-2 font-bold">Arquivo:</label>
+                        <input type="file" id="documentFile" required class="w-full p-2 border border-gray-300 rounded">
+                        <p class="text-sm text-gray-600 mt-1">Formatos aceitos: PDF, DOC, DOCX, TXT, JPG, JPEG, PNG, GIF</p>
+                    </div>
+                    <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">Enviar Documento</button>
+                </form>
+            </div>
+            <div class="mb-6">
+                <input type="text" id="searchCliente" placeholder="Pesquisar cliente..." class="w-full p-2 border border-gray-300 rounded">
+                <button onclick="searchClientes()" class="mt-2 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Buscar</button>
+            </div>
+            <div id="clienteList" class="space-y-4">
+                <!-- Os clientes serão carregados dinamicamente aqui -->
+            </div>
+            <div id="documentList" class="hidden mt-6">
+                <h3 id="selectedClientName" class="text-xl font-bold mb-4"></h3>
+                <ul class="space-y-4">
+                    <!-- Os documentos do cliente selecionado serão carregados aqui -->
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showUploadForm() {
+            const form = document.getElementById('uploadForm');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+            if (form.style.display === 'block') {
+                loadClientes();
+            }
+        }
+
+        function loadClientes() {
+            fetch('/buscar_clientes_para_documentos')
+                .then(response => response.json())
+                .then(clientes => {
+                    const select = document.getElementById('clienteSelect');
+                    select.innerHTML = '<option value="">Selecione um cliente</option>';
+                    clientes.forEach(cliente => {
+                        const option = document.createElement('option');
+                        option.value = cliente.id;
+                        option.textContent = cliente.nome;
+                        select.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar clientes:', error);
+                    alert('Erro ao carregar a lista de clientes. Por favor, tente novamente.');
+                });
+        }
+
+        function uploadDocument(e) {
+            e.preventDefault();
+            const clienteId = document.getElementById('clienteSelect').value;
+            const file = document.getElementById('documentFile').files[0];
+            if (!clienteId || !file) {
+                alert('Por favor, selecione um cliente e um arquivo.');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('cliente_id', clienteId);
+            formData.append('file', file);
+
+            fetch('/upload_documento', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw err; });
+                }
+                return response.json();
+            })
+            .then(data => {
+                alert(data.message);
+                document.getElementById('uploadForm').style.display = 'none';
+                document.getElementById('documentUploadForm').reset();
+                searchClientes(); // Atualiza a lista de clientes
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert(error.error || 'Erro ao enviar documento. Por favor, tente novamente.');
+            });
+        }
+
+        function searchClientes() {
+            const searchTerm = document.getElementById('searchCliente').value;
+            fetch(`/buscar_clientes?termo=${searchTerm}`)
+                .then(response => response.json())
+                .then(clientes => {
+                    displayClientes(clientes);
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar clientes:', error);
+                    alert('Erro ao buscar clientes. Por favor, tente novamente.');
+                });
+        }
+
+        function displayClientes(clientes) {
+            const clienteList = document.getElementById('clienteList');
+            clienteList.innerHTML = '';
+            clientes.forEach(cliente => {
+                const clienteItem = document.createElement('div');
+                clienteItem.className = 'client-item';
+                clienteItem.innerHTML = `
+                    <h3>${cliente.nome}</h3>
+                    <button onclick="loadDocumentos(${cliente.id}, '${cliente.nome}')">Ver Documentos</button>
+                `;
+                clienteList.appendChild(clienteItem);
+            });
+            document.getElementById('documentList').style.display = 'none';
+        }
+
+        function loadDocumentos(clienteId, clienteNome) {
+            fetch(`/buscar_documentos_por_cliente/${clienteId}`)
+                .then(response => response.json())
+                .then(documentos => {
+                    displayDocumentos(documentos, clienteNome);
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar documentos:', error);
+                    alert('Erro ao buscar documentos. Por favor, tente novamente.');
+                });
+        }
+
+        function displayDocumentos(documentos, clienteNome) {
+            const documentList = document.getElementById('documentList');
+            const selectedClientName = document.getElementById('selectedClientName');
+            selectedClientName.textContent = `Documentos de ${clienteNome}`;
+            const ul = documentList.querySelector('ul');
+            ul.innerHTML = '';
+            documentos.forEach(doc => {
+                const li = document.createElement('li');
+                li.className = 'document-item';
+                li.innerHTML = `
+                    <h3>${doc.nome}</h3>
+                    <div class="document-actions">
+                        <button class="btn" onclick="viewDocument(${doc.id})">Visualizar</button>
+                        <button class="btn" onclick="deleteDocument(${doc.id})">Excluir</button>
+                    </div>
+                `;
+                ul.appendChild(li);
+            });
+            documentList.style.display = 'block';
+        }
+
+        function viewDocument(id) {
+            // Implementar lógica para visualizar documento
+            alert('Visualizando documento ' + id);
+        }
+
+        function deleteDocument(id) {
+            if (confirm('Tem certeza que deseja excluir este documento?')) {
+                fetch(`/excluir_documento/${id}`, { method: 'DELETE' })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert(data.message);
+                        // Recarregar a lista de documentos do cliente atual
+                        const clienteNome = document.getElementById('selectedClientName').textContent.replace('Documentos de ', '');
+                        loadDocumentos(document.getElementById('clienteSelect').value, clienteNome);
+                    })
+                    .catch(error => {
+                        console.error('Erro:', error);
+                        alert('Erro ao excluir documento.');
+                    });
+            }
+        }
+
+        // Carregar clientes ao iniciar a página
+        window.onload = searchClientes;
+
+        // Adicionar evento de submit ao formulário de upload
+        document.getElementById('documentUploadForm').addEventListener('submit', uploadDocument);
+    </script>
+</body>
+</html>

@@ -4,6 +4,9 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
+from werkzeug.utils import secure_filename
+from storage.storage import LocalJSONStorage
+from flask_migrate import Migrate
 
 load_dotenv()  # Carrega as variáveis de ambiente do arquivo .env
 
@@ -14,10 +17,15 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///instance/site.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'sua_chave_secreta_aqui')
 
+# Configuração para upload de arquivos
+ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'txt', 'jpg', 'jpeg', 'png', 'gif'}
+
 db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+
+document_storage = LocalJSONStorage()
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -41,6 +49,15 @@ class Cliente(db.Model):
     complemento = db.Column(db.String(100))
     cidade = db.Column(db.String(100))
     estado = db.Column(db.String(2))
+
+class Documento(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(100), nullable=False)
+    tipo_arquivo = db.Column(db.String(50), nullable=False)
+    cliente_id = db.Column(db.Integer, db.ForeignKey('cliente.id'), nullable=False)
+    cliente = db.relationship('Cliente', backref=db.backref('documentos', lazy=True))
+
+migrate = Migrate(app, db)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -75,18 +92,18 @@ def register():
 @login_required
 def index():
     menu_items = [
-        {"icon": "📊", "text": "Dashboard"},
-        {"icon": "👥", "text": "Clientes"},
-        {"icon": "📝", "text": "Planos de Ação"},
-        {"icon": "📎", "text": "Documentos"},
-        {"icon": "📋", "text": "Cardápios"},
-        {"icon": "🌡️", "text": "Temperaturas"},
-        {"icon": "📊", "text": "Relatórios"},
-        {"icon": "✅", "text": "Checklists"},
-        {"icon": "📊", "text": "Avaliações"},
-        {"icon": "💬", "text": "Atendimentos"},
-        {"icon": "📄", "text": "Laudos"},
-        {"icon": "❓", "text": "Ajuda"}
+        {"icon": "📊", "text": "Dashboard", "url": url_for('dashboard')},
+        {"icon": "👥", "text": "Clientes", "url": url_for('clientes')},
+        {"icon": "📝", "text": "Planos de Ação", "url": "#"},
+        {"icon": "📎", "text": "Documentos", "url": url_for('documentos')},
+        {"icon": "📋", "text": "Cardápios", "url": "#"},
+        {"icon": "🌡️", "text": "Temperaturas", "url": "#"},
+        {"icon": "📊", "text": "Relatórios", "url": "#"},
+        {"icon": "✅", "text": "Checklists", "url": url_for('checklists')},  # Corrigido aqui
+        {"icon": "📊", "text": "Avaliações", "url": "#"},
+        {"icon": "💬", "text": "Atendimentos", "url": "#"},
+        {"icon": "📄", "text": "Laudos", "url": "#"},
+        {"icon": "❓", "text": "Ajuda", "url": "#"}
     ]
     return render_template('index.html', menu_items=menu_items)
 
@@ -99,11 +116,13 @@ def logout():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    # Aqui você pode adicionar lógica para buscar dados reais do banco de dados
-    total_clientes = 100  # exemplo
-    planos_ativos = 25  # exemplo
-    documentos_pendentes = 10  # exemplo
-    avaliacoes_realizadas = 50  # exemplo
+    # Buscando dados reais do banco de dados
+    total_clientes = Cliente.query.count()
+    
+    # Placeholder para dados que ainda não temos
+    planos_ativos = 0  # Será implementado quando tivermos a classe PlanoAcao
+    documentos_pendentes = 0  # Temporariamente definido como 0 até resolvermos o problema do banco de dados
+    avaliacoes_realizadas = 0  # Será implementado quando tivermos a classe Avaliacao
 
     return render_template('dashboard.html',
                            total_clientes=total_clientes,
@@ -129,18 +148,63 @@ def clientes():
         )
         db.session.add(novo_cliente)
         db.session.commit()
-        flash('Cliente cadastrado com sucesso!', 'success')
-        return redirect(url_for('clientes'))
+        return jsonify({'message': 'Cliente cadastrado com sucesso!'}), 201
     
-    clientes = Cliente.query.all()
-    return render_template('clientes.html', clientes=clientes)
+    return render_template('clientes.html')
 
 @app.route('/buscar_clientes')
 @login_required
 def buscar_clientes():
     termo = request.args.get('termo', '')
     clientes = Cliente.query.filter(Cliente.nome.ilike(f'%{termo}%')).all()
-    return jsonify([{'id': c.id, 'nome': c.nome, 'documento': c.documento} for c in clientes])
+    return jsonify([{
+        'id': c.id, 
+        'nome': c.nome, 
+        'documento': c.documento,
+        'telefone': c.telefone,
+        'cep': c.cep,
+        'endereco': c.endereco,
+        'numero': c.numero,
+        'complemento': c.complemento,
+        'cidade': c.cidade,
+        'estado': c.estado
+    } for c in clientes])
+
+@app.route('/buscar_cliente/<int:id>')
+@login_required
+def buscar_cliente(id):
+    cliente = Cliente.query.get(id)
+    if cliente:
+        return jsonify({
+            'id': cliente.id,
+            'nome': cliente.nome,
+            'telefone': cliente.telefone,
+            'cep': cliente.cep,
+            'endereco': cliente.endereco,
+            'numero': cliente.numero,
+            'complemento': cliente.complemento,
+            'cidade': cliente.cidade,
+            'estado': cliente.estado
+        })
+    return jsonify({'error': 'Cliente não encontrado'}), 404
+
+@app.route('/atualizar_cliente', methods=['POST'])
+@login_required
+def atualizar_cliente():
+    cliente_id = request.form.get('id')
+    cliente = Cliente.query.get(cliente_id)
+    if cliente:
+        cliente.nome = request.form.get('nome')
+        cliente.telefone = request.form.get('telefone')
+        cliente.cep = request.form.get('cep')
+        cliente.endereco = request.form.get('endereco')
+        cliente.numero = request.form.get('numero')
+        cliente.complemento = request.form.get('complemento')
+        cliente.cidade = request.form.get('cidade')
+        cliente.estado = request.form.get('estado')
+        db.session.commit()
+        return jsonify({'message': 'Cliente atualizado com sucesso'}), 200
+    return jsonify({'error': 'Cliente não encontrado'}), 404
 
 @app.route('/excluir_cliente/<int:id>', methods=['DELETE'])
 @login_required
@@ -148,7 +212,114 @@ def excluir_cliente(id):
     cliente = Cliente.query.get_or_404(id)
     db.session.delete(cliente)
     db.session.commit()
-    return '', 204  # Retorna uma resposta vazia com status 204 (No Content)
+    return jsonify({'message': 'Cliente excluído com sucesso'}), 200
+
+# Rotas para documentos
+
+@app.route('/documentos')
+@login_required
+def documentos():
+    return render_template('documentos.html')
+
+@app.route('/buscar_documentos')
+@login_required
+def buscar_documentos():
+    termo = request.args.get('termo', '')
+    app.logger.info(f"Buscando documentos com termo: '{termo}'")
+    try:
+        documentos = Documento.query.join(Cliente).filter(
+            (Documento.nome.ilike(f'%{termo}%')) | (Cliente.nome.ilike(f'%{termo}%'))
+        ).all()
+        app.logger.info(f"Documentos encontrados: {len(documentos)}")
+        resultado = [{
+            'id': doc.id,
+            'name': doc.nome,
+            'client': doc.cliente.nome
+        } for doc in documentos]
+        app.logger.info(f"Resultado da busca: {resultado}")
+        return jsonify(resultado)
+    except Exception as e:
+        app.logger.error(f"Erro ao buscar documentos: {str(e)}")
+        return jsonify({'error': 'Erro interno do servidor'}), 500
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/upload_documento', methods=['POST'])
+@login_required
+def upload_documento():
+    if 'file' not in request.files:
+        return jsonify({'error': 'Nenhum arquivo enviado'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'Nenhum arquivo selecionado'}), 400
+    
+    if 'cliente_id' not in request.form:
+        return jsonify({'error': 'ID do cliente não fornecido'}), 400
+
+    cliente_id = request.form['cliente_id']
+    cliente = Cliente.query.get(cliente_id)
+    if not cliente:
+        return jsonify({'error': 'Cliente não encontrado'}), 404
+
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        file_content = file.read()
+        
+        novo_documento = Documento(
+            nome=filename,
+            tipo_arquivo=file.content_type,
+            cliente_id=cliente_id
+        )
+        db.session.add(novo_documento)
+        db.session.commit()
+        
+        document_storage.save(novo_documento.id, file_content)
+        return jsonify({'message': 'Documento enviado com sucesso'}), 201
+    
+    return jsonify({'error': 'Tipo de arquivo não permitido'}), 400
+
+@app.route('/excluir_documento/<int:id>', methods=['DELETE'])
+@login_required
+def excluir_documento(id):
+    documento = Documento.query.get_or_404(id)
+    document_storage.delete(documento.id)
+    db.session.delete(documento)
+    db.session.commit()
+    return jsonify({'message': 'Documento excluído com sucesso'}), 200
+
+@app.route('/buscar_clientes_para_documentos')
+@login_required
+def buscar_clientes_para_documentos():
+    clientes = Cliente.query.all()
+    app.logger.info(f"Buscando clientes para documentos. Total encontrado: {len(clientes)}")
+    resultado = [{'id': c.id, 'nome': c.nome} for c in clientes]
+    app.logger.info(f"Resultado da busca de clientes: {resultado}")
+    return jsonify(resultado)
+
+@app.route('/buscar_documentos_por_cliente/<int:cliente_id>')
+@login_required
+def buscar_documentos_por_cliente(cliente_id):
+    try:
+        documentos = Documento.query.filter_by(cliente_id=cliente_id).all()
+        app.logger.info(f"Documentos encontrados para o cliente {cliente_id}: {len(documentos)}")
+        resultado = [{
+            'id': doc.id,
+            'nome': doc.nome,
+            'tipo_arquivo': doc.tipo_arquivo
+        } for doc in documentos]
+        return jsonify(resultado)
+    except Exception as e:
+        app.logger.error(f"Erro ao buscar documentos do cliente {cliente_id}: {str(e)}")
+        return jsonify({'error': 'Erro interno do servidor'}), 500
+
+@app.route('/checklists')
+@login_required
+def checklists():
+    app.logger.info("Rota /checklists foi acessada")
+    return render_template('checklists.html')
 
 if __name__ == '__main__':
     with app.app_context():
