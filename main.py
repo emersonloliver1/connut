@@ -97,6 +97,7 @@ def register():
 @login_required
 @check_session_timeout
 def index():
+    print(f"Current user: {current_user.name}")  # Adicione esta linha
     menu_items = [
         {"icon": "📊", "text": "Dashboard", "url": url_for('dashboard')},
         {"icon": "👥", "text": "Clientes", "url": url_for('clientes')},
