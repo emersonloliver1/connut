@@ -22,6 +22,7 @@ EXPOSE 8080
 # Define as variáveis de ambiente
 ENV FLASK_APP=main.py
 ENV FLASK_RUN_HOST=0.0.0.0
+ENV PORT=8080
 
 # Comando para rodar a aplicação
-CMD ["flask", "run"]
+CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 main:app
