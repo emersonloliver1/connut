@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard </title>
+    <title>Dashboard</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -20,7 +20,19 @@
             background-color: #4CAF50;
             color: white;
             padding: 10px 0;
-            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+        }
+        .logo {
+            max-height: 50px;
+            margin-right: 20px;
+            margin-left: 20px;
+            border-radius: 50%;
+        }
+        h1 {
+            margin: 0;
+            flex-grow: 1;
         }
         .menu {
             display: flex;
@@ -57,7 +69,8 @@
 </head>
 <body>
     <header>
-        <h1>CONNUT Dashboard</h1>
+        <img src="{{ url_for('static', filename='logo.jpg') }}" alt="CONNUT Logo" class="logo">
+        <h1>Dashboard</h1>
     </header>
     <div class="container">
         <div class="menu">

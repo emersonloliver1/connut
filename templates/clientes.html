@@ -19,12 +19,20 @@
         header {
             background-color: #4CAF50;
             color: white;
-            padding: 20px 0;
-            text-align: center;
-            margin-bottom: 20px;
+            padding: 10px 0;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+        }
+        .logo {
+            max-height: 50px;
+            margin-right: 20px;
+            margin-left: 20px;
+            border-radius: 50%; /* Isso fará as bordas ficarem completamente arredondadas */
         }
         h1 {
             margin: 0;
+            flex-grow: 1;
         }
         .content {
             background-color: white;
@@ -63,30 +71,68 @@
         .cadastro-form {
             display: none;
             margin-top: 20px;
-            background-color: #f9f9f9;
-            padding: 20px;
-            border-radius: 4px;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
         .form-group label {
             display: block;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
             font-weight: bold;
+            color: #333;
         }
         .form-group input, .form-group select {
             width: 100%;
-            padding: 8px;
+            padding: 10px;
             border: 1px solid #ddd;
             border-radius: 4px;
+            font-size: 16px;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #4CAF50;
+            box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
         }
         .form-group.inline {
             display: flex;
             align-items: center;
+            gap: 15px;
         }
         .form-group.inline label {
-            margin-right: 10px;
+            margin-bottom: 0;
+        }
+        .form-group.inline input[type="radio"] {
+            width: auto;
+        }
+        button[type="submit"] {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button[type="submit"]:hover {
+            background-color: #45a049;
+        }
+        .form-title {
+            text-align: center;
+            color: #4CAF50;
+            margin-bottom: 20px;
+        }
+        .form-section {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 20px;
+            margin-bottom: 20px;
+        }
+        .form-section:last-child {
+            border-bottom: none;
         }
         .cliente-list {
             margin-top: 20px;
@@ -98,6 +144,9 @@
             margin-bottom: 10px;
             border-radius: 4px;
             transition: box-shadow 0.3s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         .cliente-item:hover {
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
@@ -111,11 +160,37 @@
             justify-content: space-between;
             margin-bottom: 20px;
         }
+        .cliente-info {
+            flex-grow: 1;
+        }
+        .cliente-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .edit-btn, .delete-btn {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .edit-btn {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .delete-btn {
+            background-color: #f44336;
+            color: white;
+        }
+        .edit-btn:hover, .delete-btn:hover {
+            opacity: 0.8;
+        }
     </style>
 </head>
 <body>
     <header>
-        <h1>Clientes CONNUT</h1>
+        <img src="{{ url_for('static', filename='logo.jpg') }}" alt="CONNUT Logo" class="logo">
+        <h1>Clientes</h1>
     </header>
     <div class="container">
         <div class="content">
@@ -124,65 +199,69 @@
                 <button class="cadastro-btn" onclick="toggleCadastroForm()">Cadastrar Novo Cliente</button>
             </div>
             <div class="search-bar">
-                <input type="text" id="searchCliente" placeholder="Pesquisar cliente...">
-                <button onclick="searchClientes()">Buscar</button>
+                <input type="text" id="searchCliente" placeholder="Pesquisar cliente..." oninput="searchClientes()">
             </div>
             
             <div id="clienteList" class="cliente-list">
-                {% for cliente in clientes %}
-                <div class="cliente-item">
-                    <h3>{{ cliente.nome }}</h3>
-                    <p><strong>{{ cliente.tipo_pessoa }}:</strong> {{ cliente.documento }}</p>
-                    <p><strong>Telefone:</strong> {{ cliente.telefone }}</p>
-                    <p><strong>Endereço:</strong> {{ cliente.endereco }}, {{ cliente.numero }} - {{ cliente.cidade }}/{{ cliente.estado }}</p>
-                </div>
-                {% endfor %}
+                <!-- Os clientes serão carregados dinamicamente aqui -->
             </div>
 
             <form id="cadastroForm" class="cadastro-form" method="POST">
-                <div class="form-group">
-                    <label for="nome">Nome:</label>
-                    <input type="text" id="nome" name="nome" required>
+                <h2 class="form-title">Cadastro de Novo Cliente</h2>
+                
+                <div class="form-section">
+                    <div class="form-group">
+                        <label for="nome">Nome:</label>
+                        <input type="text" id="nome" name="nome" required>
+                    </div>
+                    <div class="form-group inline">
+                        <label>Tipo de Pessoa:</label>
+                        <div>
+                            <input type="radio" id="pessoaFisica" name="tipoPessoa" value="fisica" checked onchange="toggleDocumento()">
+                            <label for="pessoaFisica">Física</label>
+                        </div>
+                        <div>
+                            <input type="radio" id="pessoaJuridica" name="tipoPessoa" value="juridica" onchange="toggleDocumento()">
+                            <label for="pessoaJuridica">Jurídica</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="documento" id="documentoLabel">CPF:</label>
+                        <input type="text" id="documento" name="documento" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="telefone">Contato:</label>
+                        <input type="tel" id="telefone" name="telefone" placeholder="(xx) xxxxx-xxxx" required>
+                    </div>
                 </div>
-                <div class="form-group inline">
-                    <label>Tipo de Pessoa:</label>
-                    <input type="radio" id="pessoaFisica" name="tipoPessoa" value="fisica" checked onchange="toggleDocumento()">
-                    <label for="pessoaFisica">Física</label>
-                    <input type="radio" id="pessoaJuridica" name="tipoPessoa" value="juridica" onchange="toggleDocumento()">
-                    <label for="pessoaJuridica">Jurídica</label>
+
+                <div class="form-section">
+                    <div class="form-group">
+                        <label for="cep">CEP:</label>
+                        <input type="text" id="cep" name="cep" placeholder="xxxxx-xxx" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="endereco">Endereço:</label>
+                        <input type="text" id="endereco" name="endereco" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="numero">Nº:</label>
+                        <input type="text" id="numero" name="numero" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="complemento">Complemento:</label>
+                        <input type="text" id="complemento" name="complemento">
+                    </div>
+                    <div class="form-group">
+                        <label for="cidade">Cidade:</label>
+                        <input type="text" id="cidade" name="cidade" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="estado">Estado:</label>
+                        <input type="text" id="estado" name="estado" required>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="documento" id="documentoLabel">CPF:</label>
-                    <input type="text" id="documento" name="documento" required>
-                </div>
-                <div class="form-group">
-                    <label for="telefone">Contato:</label>
-                    <input type="tel" id="telefone" name="telefone" placeholder="xx xxxxx-xxxx" required>
-                </div>
-                <div class="form-group">
-                    <label for="cep">CEP:</label>
-                    <input type="text" id="cep" name="cep" placeholder="xxxxx-xxx" required>
-                </div>
-                <div class="form-group">
-                    <label for="endereco">Endereço:</label>
-                    <input type="text" id="endereco" name="endereco" required>
-                </div>
-                <div class="form-group">
-                    <label for="numero">Nº:</label>
-                    <input type="text" id="numero" name="numero" required>
-                </div>
-                <div class="form-group">
-                    <label for="complemento">Complemento:</label>
-                    <input type="text" id="complemento" name="complemento">
-                </div>
-                <div class="form-group">
-                    <label for="cidade">Cidade:</label>
-                    <input type="text" id="cidade" name="cidade" required>
-                </div>
-                <div class="form-group">
-                    <label for="estado">Estado:</label>
-                    <input type="text" id="estado" name="estado" required>
-                </div>
+
                 <button type="submit">Cadastrar Cliente</button>
             </form>
         </div>
@@ -299,13 +378,42 @@
                         const clienteItem = document.createElement('div');
                         clienteItem.className = 'cliente-item';
                         clienteItem.innerHTML = `
-                            <h3>${cliente.nome}</h3>
-                            <p>${cliente.documento}</p>
+                            <div class="cliente-info">
+                                <h3>${cliente.nome}</h3>
+                                <p>${cliente.documento}</p>
+                            </div>
+                            <div class="cliente-actions">
+                                <button class="edit-btn" onclick="editarCliente(${cliente.id})">Editar</button>
+                                <button class="delete-btn" onclick="excluirCliente(${cliente.id})">Excluir</button>
+                            </div>
                         `;
                         clienteList.appendChild(clienteItem);
                     });
                 });
         }
+
+        function editarCliente(id) {
+            // Implementar a lógica de edição
+            console.log('Editar cliente', id);
+            // Aqui você pode abrir um modal ou redirecionar para uma página de edição
+        }
+
+        function excluirCliente(id) {
+            if (confirm('Tem certeza que deseja excluir este cliente?')) {
+                fetch(`/excluir_cliente/${id}`, { method: 'DELETE' })
+                    .then(response => {
+                        if (response.ok) {
+                            alert('Cliente excluído com sucesso!');
+                            searchClientes(); // Atualiza a lista
+                        } else {
+                            alert('Erro ao excluir cliente.');
+                        }
+                    });
+            }
+        }
+
+        // Carregar clientes ao iniciar a página
+        window.onload = searchClientes;
 
         document.getElementById('cadastroForm').addEventListener('submit', function(e) {
             e.preventDefault();

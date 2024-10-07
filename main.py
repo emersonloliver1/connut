@@ -7,10 +7,10 @@ from dotenv import load_dotenv
 
 load_dotenv()  # Carrega as variáveis de ambiente do arquivo .env
 
-app = Flask(__name__, static_folder='assets', static_url_path='/assets')
+app = Flask(__name__, static_folder='static', static_url_path='/static')
 
-# Configuração do banco de dados SQLite local
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///site.db'
+# Configuração do banco de dados SQLite na pasta instance
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///instance/site.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'sua_chave_secreta_aqui')
 
@@ -142,9 +142,18 @@ def buscar_clientes():
     clientes = Cliente.query.filter(Cliente.nome.ilike(f'%{termo}%')).all()
     return jsonify([{'id': c.id, 'nome': c.nome, 'documento': c.documento} for c in clientes])
 
+@app.route('/excluir_cliente/<int:id>', methods=['DELETE'])
+@login_required
+def excluir_cliente(id):
+    cliente = Cliente.query.get_or_404(id)
+    db.session.delete(cliente)
+    db.session.commit()
+    return '', 204  # Retorna uma resposta vazia com status 204 (No Content)
+
 if __name__ == '__main__':
     with app.app_context():
+        if not os.path.exists('instance'):
+            os.makedirs('instance')
         db.create_all()
-    # Configuração para o Cloud Run
-    port = int(os.environ.get('PORT', 8080))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    # Configuração para desenvolvimento local
+    app.run(host='0.0.0.0', port=5000, debug=True)
