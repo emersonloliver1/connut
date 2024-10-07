@@ -17,7 +17,7 @@ COPY . .
 RUN mkdir -p instance
 
 # Expõe a porta que a aplicação vai usar
-EXPOSE 5000
+EXPOSE 8080
 
 # Define as variáveis de ambiente
 ENV FLASK_APP=main.py
