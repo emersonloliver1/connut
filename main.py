@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
 from storage.storage import LocalJSONStorage
 from flask_migrate import Migrate
+from security.timestamp import init_session_timeout, check_session_timeout
+from datetime import datetime
 
 load_dotenv()  # Carrega as variáveis de ambiente do arquivo .env
 
@@ -59,6 +61,8 @@ class Documento(db.Model):
 
 migrate = Migrate(app, db)
 
+init_session_timeout(app)
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -67,6 +71,7 @@ def login():
         user = User.query.filter_by(email=email).first()
         if user and check_password_hash(user.password, password):
             login_user(user)
+            session['last_activity'] = datetime.utcnow().isoformat()
             return redirect(url_for('index'))
         else:
             flash('Login inválido. Por favor, tente novamente.')
@@ -90,6 +95,7 @@ def register():
 
 @app.route('/')
 @login_required
+@check_session_timeout
 def index():
     menu_items = [
         {"icon": "📊", "text": "Dashboard", "url": url_for('dashboard')},
@@ -99,22 +105,24 @@ def index():
         {"icon": "📋", "text": "Cardápios", "url": "#"},
         {"icon": "🌡️", "text": "Temperaturas", "url": "#"},
         {"icon": "📊", "text": "Relatórios", "url": "#"},
-        {"icon": "✅", "text": "Checklists", "url": url_for('checklists')},  # Corrigido aqui
+        {"icon": "✅", "text": "Checklists", "url": url_for('checklists')},
         {"icon": "📊", "text": "Avaliações", "url": "#"},
         {"icon": "💬", "text": "Atendimentos", "url": "#"},
         {"icon": "📄", "text": "Laudos", "url": "#"},
         {"icon": "❓", "text": "Ajuda", "url": "#"}
     ]
-    return render_template('index.html', menu_items=menu_items)
+    return render_template('index.html', menu_items=menu_items, current_user=current_user)
 
 @app.route('/logout')
 @login_required
 def logout():
+    session.clear()
     logout_user()
     return redirect(url_for('login'))
 
 @app.route('/dashboard')
 @login_required
+@check_session_timeout
 def dashboard():
     # Buscando dados reais do banco de dados
     total_clientes = Cliente.query.count()
@@ -128,10 +136,12 @@ def dashboard():
                            total_clientes=total_clientes,
                            planos_ativos=planos_ativos,
                            documentos_pendentes=documentos_pendentes,
-                           avaliacoes_realizadas=avaliacoes_realizadas)
+                           avaliacoes_realizadas=avaliacoes_realizadas,
+                           current_user=current_user)
 
 @app.route('/clientes', methods=['GET', 'POST'])
 @login_required
+@check_session_timeout
 def clientes():
     if request.method == 'POST':
         novo_cliente = Cliente(
@@ -150,7 +160,7 @@ def clientes():
         db.session.commit()
         return jsonify({'message': 'Cliente cadastrado com sucesso!'}), 201
     
-    return render_template('clientes.html')
+    return render_template('clientes.html', current_user=current_user)
 
 @app.route('/buscar_clientes')
 @login_required
@@ -159,7 +169,7 @@ def buscar_clientes():
     clientes = Cliente.query.filter(Cliente.nome.ilike(f'%{termo}%')).all()
     return jsonify([{
         'id': c.id, 
-        'nome': c.nome, 
+        'nome': c.nome,
         'documento': c.documento,
         'telefone': c.telefone,
         'cep': c.cep,
@@ -218,8 +228,9 @@ def excluir_cliente(id):
 
 @app.route('/documentos')
 @login_required
+@check_session_timeout
 def documentos():
-    return render_template('documentos.html')
+    return render_template('documentos.html', current_user=current_user)
 
 @app.route('/buscar_documentos')
 @login_required
@@ -317,9 +328,10 @@ def buscar_documentos_por_cliente(cliente_id):
 
 @app.route('/checklists')
 @login_required
+@check_session_timeout
 def checklists():
     app.logger.info("Rota /checklists foi acessada")
-    return render_template('checklists.html')
+    return render_template('checklists.html', current_user=current_user)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))

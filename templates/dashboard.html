@@ -1,38 +1,29 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - CONNUT</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-100">
-    <header class="bg-green-600 text-white p-4 flex items-center">
-        <img src="{{ url_for('static', filename='logo.jpg') }}" alt="CONNUT Logo" class="h-12 w-12 rounded-full mr-4">
-        <h1 class="text-2xl font-bold">Dashboard</h1>
-    </header>
-    <div class="container mx-auto p-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-xl font-bold mb-2 text-gray-700">Total de Clientes</h2>
-                <p class="text-3xl font-bold text-green-600">{{ total_clientes }}</p>
-            </div>
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-xl font-bold mb-2 text-gray-700">Planos de Ação Ativos</h2>
-                <p class="text-3xl font-bold text-green-600">{{ planos_ativos }}</p>
-            </div>
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-xl font-bold mb-2 text-gray-700">Documentos Pendentes</h2>
-                <p class="text-3xl font-bold text-green-600">{{ documentos_pendentes }}</p>
-            </div>
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-xl font-bold mb-2 text-gray-700">Avaliações Realizadas</h2>
-                <p class="text-3xl font-bold text-green-600">{{ avaliacoes_realizadas }}</p>
-            </div>
-        </div>
-        <a href="{{ url_for('index') }}" class="inline-block mt-6 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">
-            Voltar para o Menu Principal
-        </a>
+{% extends "base.html" %}
+
+{% block title %}Dashboard - CONNUT{% endblock %}
+
+{% block header %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-bold mb-2 text-gray-700">Total de Clientes</h2>
+        <p class="text-3xl font-bold text-green-600">{{ total_clientes }}</p>
     </div>
-</body>
-</html>
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-bold mb-2 text-gray-700">Planos de Ação Ativos</h2>
+        <p class="text-3xl font-bold text-green-600">{{ planos_ativos }}</p>
+    </div>
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-bold mb-2 text-gray-700">Documentos Pendentes</h2>
+        <p class="text-3xl font-bold text-green-600">{{ documentos_pendentes }}</p>
+    </div>
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-bold mb-2 text-gray-700">Avaliações Realizadas</h2>
+        <p class="text-3xl font-bold text-green-600">{{ avaliacoes_realizadas }}</p>
+    </div>
+</div>
+<a href="{{ url_for('index') }}" class="inline-block mt-6 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">
+    Voltar para o Menu Principal
+</a>
+{% endblock %}
