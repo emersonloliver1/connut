@@ -24,10 +24,11 @@ ENV FLASK_APP=main.py
 ENV FLASK_RUN_HOST=0.0.0.0
 ENV PORT=8080
 
-# Inicializa o banco de dados
-RUN flask db init
-RUN flask db migrate
-RUN flask db upgrade
+# Remove os comandos de inicialização do banco de dados
+# Estes comandos devem ser executados em tempo de execução, não durante a construção da imagem
+# RUN flask db init
+# RUN flask db migrate
+# RUN flask db upgrade
 
 # Comando para rodar a aplicação
 CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 main:app
