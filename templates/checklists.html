@@ -169,21 +169,30 @@
                             descricao: "Porta com bloqueio para entrada de vetores e poeiras - cortina de ar e veda porta."
                         }
                     ]
+                },
+                {
+                    titulo: "2. Utensílios e Equipamento",
+                    itens: [
+                        {
+                            id: "utensilios",
+                            descricao: "Utensílios, em bom estado de higienização e conservação."
+                        }
+                    ]
                 }
             ];
 
             questoes.forEach(secao => {
                 const secaoElement = document.createElement('div');
-                secaoElement.className = 'mb-4'; // Reduzido de 'mb-6' para 'mb-4'
-                secaoElement.innerHTML = `<h3 class="text-xl font-bold mb-2">${secao.titulo}</h3>`; // Reduzido de 'mb-4' para 'mb-2'
+                secaoElement.className = 'mb-4';
+                secaoElement.innerHTML = `<h3 class="text-xl font-bold mb-2">${secao.titulo}</h3>`;
 
                 secao.itens.forEach(item => {
                     const questao = document.createElement('div');
-                    questao.className = 'mb-2 p-3 rounded'; // Reduzido de 'mb-4 p-4' para 'mb-2 p-3'
+                    questao.className = 'mb-2 p-3 rounded';
                     questao.innerHTML = `
-                        <div class="mb-2"> <!-- Reduzido de 'mb-4' para 'mb-2' -->
+                        <div class="mb-2">
                             <p class="font-semibold">${item.descricao}</p>
-                            <div class="flex items-center space-x-4 mt-1"> <!-- Reduzido de 'mt-2' para 'mt-1' -->
+                            <div class="flex items-center space-x-4 mt-1">
                                 <select onchange="atualizarConformidade(this)" class="form-select mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
                                     <option value="">Selecione uma nota</option>
                                     <option value="100">100%</option>
@@ -193,11 +202,11 @@
                                     <option value="NA">N/A</option>
                                 </select>
                             </div>
-                            <div id="comentario-${item.id}" class="mt-1 p-1 rounded font-bold text-black"></div> <!-- Reduzido de 'mt-2 p-2' para 'mt-1 p-1' -->
-                            <textarea class="mt-1 w-full p-2 border rounded" placeholder="Observações..."></textarea> <!-- Reduzido de 'mt-2' para 'mt-1' -->
-                            <div class="mt-1"> <!-- Reduzido de 'mt-2' para 'mt-1' -->
+                            <div id="comentario-${item.id}" class="mt-1 p-1 rounded font-bold text-black"></div>
+                            <textarea class="mt-1 w-full p-2 border rounded" placeholder="Observações..."></textarea>
+                            <div class="mt-1">
                                 <input type="file" id="anexo-${item.id}" class="hidden" accept="image/*,application/pdf">
-                                <label for="anexo-${item.id}" class="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded inline-block"> <!-- Reduzido padding -->
+                                <label for="anexo-${item.id}" class="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded inline-block">
                                     Adicionar Anexo
                                 </label>
                                 <span id="nome-arquivo-${item.id}" class="ml-2"></span>
@@ -233,7 +242,7 @@
             switch(valor) {
                 case '100':
                     questao.classList.add('conformidade-100');
-                    comentarioDiv.textContent = 'Sim';
+                    comentarioDiv.textContent = 'Conforme';
                     break;
                 case '50':
                     questao.classList.add('conformidade-50');
