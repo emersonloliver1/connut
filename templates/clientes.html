@@ -259,9 +259,35 @@
         }
 
         function editarCliente(id) {
-            // Implementar a lógica de edição
-            console.log('Editar cliente', id);
-            // Aqui você pode abrir um modal ou redirecionar para uma página de edição
+            fetch(`/buscar_cliente/${id}`)
+                .then(response => response.json())
+                .then(cliente => {
+                    // Preencher o formulário de edição com os dados do cliente
+                    document.getElementById('editId').value = cliente.id;
+                    document.getElementById('editNome').value = cliente.nome;
+                    document.getElementById('editTelefone').value = cliente.telefone;
+                    document.getElementById('editCep').value = cliente.cep;
+                    document.getElementById('editEndereco').value = cliente.endereco;
+                    document.getElementById('editNumero').value = cliente.numero;
+                    document.getElementById('editComplemento').value = cliente.complemento;
+                    document.getElementById('editCidade').value = cliente.cidade;
+                    document.getElementById('editEstado').value = cliente.estado;
+
+                    // Exibir o modal de edição
+                    showEditModal();
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar dados do cliente:', error);
+                    alert('Erro ao carregar dados do cliente. Por favor, tente novamente.');
+                });
+        }
+
+        function showEditModal() {
+            document.getElementById('editModal').classList.remove('hidden');
+        }
+
+        function hideEditModal() {
+            document.getElementById('editModal').classList.add('hidden');
         }
 
         function excluirCliente(id) {
@@ -298,6 +324,31 @@
                 }
             });
         });
+
+        // Adicionar event listener para o formulário de edição
+        document.getElementById('editForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            fetch('/atualizar_cliente', {
+                method: 'POST',
+                body: formData
+            }).then(response => {
+                if (response.ok) {
+                    alert('Cliente atualizado com sucesso!');
+                    hideEditModal();
+                    searchClientes(); // Atualiza a lista de clientes
+                } else {
+                    alert('Erro ao atualizar cliente.');
+                }
+            });
+        });
+
+        // Adicionar botão para fechar o modal
+        const closeModalButton = document.createElement('button');
+        closeModalButton.textContent = 'Fechar';
+        closeModalButton.className = 'mt-4 bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded';
+        closeModalButton.onclick = hideEditModal;
+        document.querySelector('#editModal .mt-4').appendChild(closeModalButton);
 
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('documento').addEventListener('input', function() {

@@ -38,14 +38,31 @@
                 <input type="text" id="searchCliente" placeholder="Pesquisar cliente..." class="w-full p-2 border border-gray-300 rounded">
                 <button onclick="searchClientes()" class="mt-2 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Buscar</button>
             </div>
-            <div id="clienteList" class="space-y-4">
+            <div id="clienteList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <!-- Os clientes serão carregados dinamicamente aqui -->
             </div>
             <div id="documentList" class="hidden mt-6">
                 <h3 id="selectedClientName" class="text-xl font-bold mb-4"></h3>
-                <ul class="space-y-4">
+                <ul class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <!-- Os documentos do cliente selecionado serão carregados aqui -->
                 </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para visualização de documentos -->
+    <div id="documentModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+            <div class="mt-3 text-center">
+                <h3 id="documentModalTitle" class="text-lg leading-6 font-medium text-gray-900"></h3>
+                <div id="documentModalContent" class="mt-2">
+                    <!-- O conteúdo do documento será carregado aqui -->
+                </div>
+                <div class="mt-4">
+                    <button onclick="closeDocumentModal()" class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                        Fechar
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -131,10 +148,12 @@
             clienteList.innerHTML = '';
             clientes.forEach(cliente => {
                 const clienteItem = document.createElement('div');
-                clienteItem.className = 'client-item';
+                clienteItem.className = 'bg-white p-4 rounded-lg shadow';
                 clienteItem.innerHTML = `
-                    <h3>${cliente.nome}</h3>
-                    <button onclick="loadDocumentos(${cliente.id}, '${cliente.nome}')">Ver Documentos</button>
+                    <h3 class="text-lg font-semibold mb-2">${cliente.nome}</h3>
+                    <button onclick="loadDocumentos(${cliente.id}, '${cliente.nome}')" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
+                        Ver Documentos
+                    </button>
                 `;
                 clienteList.appendChild(clienteItem);
             });
@@ -161,12 +180,12 @@
             ul.innerHTML = '';
             documentos.forEach(doc => {
                 const li = document.createElement('li');
-                li.className = 'document-item';
+                li.className = 'bg-white p-4 rounded-lg shadow';
                 li.innerHTML = `
-                    <h3>${doc.nome}</h3>
-                    <div class="document-actions">
-                        <button class="btn" onclick="viewDocument(${doc.id})">Visualizar</button>
-                        <button class="btn" onclick="deleteDocument(${doc.id})">Excluir</button>
+                    <h3 class="text-lg font-semibold mb-2">${doc.nome}</h3>
+                    <div class="flex space-x-2">
+                        <button onclick="viewDocument(${doc.id}, '${doc.nome}')" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded">Visualizar</button>
+                        <button onclick="deleteDocument(${doc.id})" class="bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-2 rounded">Excluir</button>
                     </div>
                 `;
                 ul.appendChild(li);
@@ -174,9 +193,34 @@
             documentList.style.display = 'block';
         }
 
-        function viewDocument(id) {
-            // Implementar lógica para visualizar documento
-            alert('Visualizando documento ' + id);
+        function viewDocument(id, nome) {
+            fetch(`/visualizar_documento/${id}`)
+                .then(response => response.blob())
+                .then(blob => {
+                    const url = URL.createObjectURL(blob);
+                    const modalTitle = document.getElementById('documentModalTitle');
+                    const modalContent = document.getElementById('documentModalContent');
+                    modalTitle.textContent = nome;
+                    modalContent.innerHTML = '';
+
+                    if (nome.toLowerCase().endsWith('.pdf')) {
+                        modalContent.innerHTML = `<iframe src="${url}" width="100%" height="500px"></iframe>`;
+                    } else if (['jpg', 'jpeg', 'png', 'gif'].some(ext => nome.toLowerCase().endsWith(ext))) {
+                        modalContent.innerHTML = `<img src="${url}" alt="${nome}" style="max-width: 100%; max-height: 500px;">`;
+                    } else {
+                        modalContent.innerHTML = `<a href="${url}" download="${nome}" class="text-blue-500 hover:underline">Baixar ${nome}</a>`;
+                    }
+
+                    document.getElementById('documentModal').classList.remove('hidden');
+                })
+                .catch(error => {
+                    console.error('Erro ao visualizar documento:', error);
+                    alert('Erro ao visualizar documento. Por favor, tente novamente.');
+                });
+        }
+
+        function closeDocumentModal() {
+            document.getElementById('documentModal').classList.add('hidden');
         }
 
         function deleteDocument(id) {

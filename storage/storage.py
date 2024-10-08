@@ -32,10 +32,13 @@ class LocalJSONStorage(DocumentStorage):
             json.dump(data, f)
             f.truncate()
 
-    def get(self, doc_id):
+    def load(self, doc_id):
         with open(self.file_path, 'r') as f:
             data = json.load(f)
-            return base64.b64decode(data.get(str(doc_id), ''))
+            encoded_content = data.get(str(doc_id))
+            if encoded_content:
+                return base64.b64decode(encoded_content)
+        return None
 
     def delete(self, doc_id):
         with open(self.file_path, 'r+') as f:
@@ -45,6 +48,9 @@ class LocalJSONStorage(DocumentStorage):
                 f.seek(0)
                 json.dump(data, f)
                 f.truncate()
+
+    def get(self, doc_id):
+        return self.load(doc_id)
 
 # Futura implementação para Google Cloud Storage
 class GoogleCloudStorage(DocumentStorage):

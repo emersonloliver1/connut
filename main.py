@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -9,6 +9,7 @@ from storage.storage import LocalJSONStorage
 from flask_migrate import Migrate
 from security.timestamp import init_session_timeout, check_session_timeout
 from datetime import datetime
+import io
 
 load_dotenv()  # Carrega as variáveis de ambiente do arquivo .env
 
@@ -252,7 +253,7 @@ def buscar_documentos():
         return jsonify(resultado)
     except Exception as e:
         app.logger.error(f"Erro ao buscar documentos: {str(e)}")
-        return jsonify({'error': 'Erro interno do servidor'}), 500
+        return jsonify({'error': f'Erro interno do servidor: {str(e)}'}), 500
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -288,7 +289,7 @@ def upload_documento():
         db.session.add(novo_documento)
         db.session.commit()
         
-        document_storage.save(novo_documento.id, file_content)
+        document_storage.save(str(novo_documento.id), file_content.decode('utf-8') if isinstance(file_content, bytes) else file_content)
         return jsonify({'message': 'Documento enviado com sucesso'}), 201
     
     return jsonify({'error': 'Tipo de arquivo não permitido'}), 400
@@ -296,20 +297,34 @@ def upload_documento():
 @app.route('/excluir_documento/<int:id>', methods=['DELETE'])
 @login_required
 def excluir_documento(id):
-    documento = Documento.query.get_or_404(id)
-    document_storage.delete(documento.id)
-    db.session.delete(documento)
-    db.session.commit()
-    return jsonify({'message': 'Documento excluído com sucesso'}), 200
+    try:
+        documento = Documento.query.get_or_404(id)
+        app.logger.info(f"Tentando excluir documento com ID: {id}")
+        
+        # Tente excluir o documento do armazenamento
+        try:
+            document_storage.delete(str(documento.id))
+            app.logger.info(f"Documento {id} excluído do armazenamento")
+        except Exception as storage_error:
+            app.logger.error(f"Erro ao excluir documento {id} do armazenamento: {str(storage_error)}")
+            # Continua mesmo se falhar a exclusão do armazenamento
+        
+        # Exclui o documento do banco de dados
+        db.session.delete(documento)
+        db.session.commit()
+        app.logger.info(f"Documento {id} excluído do banco de dados")
+        
+        return jsonify({'message': 'Documento excluído com sucesso'}), 200
+    except Exception as e:
+        app.logger.error(f"Erro ao excluir documento {id}: {str(e)}")
+        db.session.rollback()
+        return jsonify({'error': f'Erro ao excluir documento: {str(e)}'}), 500
 
 @app.route('/buscar_clientes_para_documentos')
 @login_required
 def buscar_clientes_para_documentos():
     clientes = Cliente.query.all()
-    app.logger.info(f"Buscando clientes para documentos. Total encontrado: {len(clientes)}")
-    resultado = [{'id': c.id, 'nome': c.nome} for c in clientes]
-    app.logger.info(f"Resultado da busca de clientes: {resultado}")
-    return jsonify(resultado)
+    return jsonify([{'id': c.id, 'nome': c.nome} for c in clientes])
 
 @app.route('/buscar_documentos_por_cliente/<int:cliente_id>')
 @login_required
@@ -334,6 +349,20 @@ def checklists():
     app.logger.info("Rota /checklists foi acessada")
     return render_template('checklists.html', current_user=current_user)
 
+@app.route('/visualizar_documento/<int:id>')
+@login_required
+def visualizar_documento(id):
+    documento = Documento.query.get_or_404(id)
+    conteudo = document_storage.load(str(documento.id))  # Convertemos para string
+    if conteudo is None:
+        return jsonify({'error': 'Documento não encontrado'}), 404
+    return send_file(
+        io.BytesIO(conteudo.encode('utf-8') if isinstance(conteudo, str) else conteudo),
+        mimetype=documento.tipo_arquivo,
+        as_attachment=True,
+        download_name=documento.nome
+    )
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
-    app.run(host='0.0.0.0', port=port)
+    app.run(debug=True, host='0.0.0.0', port=port)
