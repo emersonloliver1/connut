@@ -71,6 +71,13 @@
                 <!-- As questões serão geradas dinamicamente aqui -->
             </div>
 
+            <!-- Avaliação de Desempenho -->
+            <div id="avaliacao-desempenho" class="mt-6 hidden">
+                <h3 class="text-xl font-bold mb-2">Avaliação de Desempenho</h3>
+                <div id="resultado-avaliacao" class="p-4 rounded-lg text-white font-bold text-center"></div>
+                <p id="porcentagem-conformidade" class="mt-2 text-center"></p>
+            </div>
+
             <!-- Botão Salvar -->
             <button onclick="salvarChecklist()" class="mt-6 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition duration-300">
                 Salvar Checklist
@@ -84,12 +91,26 @@
 
     <script>
         let checklistType = '';
+        let checklistEmProgresso = null;
 
         function openChecklist(type) {
             checklistType = type;
             document.getElementById('checklist-selection').classList.add('hidden');
             document.getElementById('cliente-selection').classList.remove('hidden');
             carregarClientes();
+            verificarChecklistEmProgresso();
+        }
+
+        function verificarChecklistEmProgresso() {
+            const checklistSalvo = localStorage.getItem('checklistEmProgresso');
+            if (checklistSalvo) {
+                checklistEmProgresso = JSON.parse(checklistSalvo);
+                // Preencher os campos com os dados salvos
+                document.getElementById('cliente-select').value = checklistEmProgresso.clienteId;
+                document.getElementById('avaliador').value = checklistEmProgresso.avaliador;
+                document.getElementById('data-inspecao').value = checklistEmProgresso.dataInspecao;
+                document.getElementById('area-observada').value = checklistEmProgresso.areaObservada;
+            }
         }
 
         function carregarClientes() {
@@ -118,9 +139,27 @@
             if (checklistType === 'higienico-sanitario') {
                 document.getElementById('higienico-sanitario-checklist').classList.remove('hidden');
                 gerarQuestoesChecklist();
+                // Mova a inicialização da avaliação para depois de gerar as questões
+                setTimeout(() => {
+                    inicializarAvaliacaoDesempenho();
+                    if (checklistEmProgresso) {
+                        preencherRespostas(checklistEmProgresso.respostas);
+                    }
+                }, 100);
             } else {
                 alert('Checklist RDC 216 ainda não implementado');
             }
+        }
+
+        function preencherRespostas(respostas) {
+            const questoes = document.querySelectorAll('#checklist-questoes .mb-2');
+            questoes.forEach((questao, index) => {
+                if (respostas[index]) {
+                    questao.querySelector('select').value = respostas[index].conformidade;
+                    questao.querySelector('textarea').value = respostas[index].observacoes;
+                    atualizarConformidade(questao.querySelector('select'));
+                }
+            });
         }
 
         function voltarParaSelecao() {
@@ -271,7 +310,7 @@
                         },
                         {
                             id: "exposicao_temperatura_ambiente",
-                            descricao: "As matérias-primas e ingredientes caracterizados como produtos perecíveis são expostos a temperatura ambiente somente pelo tempo mínimo necessário para a preparação do alimento."
+                            descricao: "As matérias-primas e ingredientes caracterizados como produtos perecíveis são expostas a temperatura ambiente somente pelo tempo mínimo necessário para a preparação do alimento."
                         },
                         {
                             id: "lavatorios_producao",
@@ -425,10 +464,15 @@
 
         function atualizarConformidade(select) {
             const valor = select.value;
-            const questao = select.closest('.mb-2'); // Alterado para selecionar o elemento pai mais próximo
+            const questao = select.closest('.mb-2');
             const comentarioDiv = questao.querySelector('[id^="comentario-"]');
             
-            questao.className = 'mb-2 p-3 rounded'; // Mantém as classes originais
+            if (!questao || !comentarioDiv) {
+                console.error('Elementos necessários não encontrados');
+                return;
+            }
+            
+            questao.className = 'mb-2 p-3 rounded';
             comentarioDiv.className = 'mt-1 p-1 rounded font-bold text-black';
             
             switch(valor) {
@@ -457,29 +501,29 @@
                     comentarioDiv.textContent = '';
                     comentarioDiv.className = 'mt-1 p-1 rounded';
             }
+            salvarProgressoAutomatico();
+            atualizarAvaliacaoDesempenho();
         }
 
-        function salvarChecklist() {
-            const clienteId = document.getElementById('cliente-select').value;
-            const avaliador = document.getElementById('avaliador').value;
-            const dataInspecao = document.getElementById('data-inspecao').value;
-            const areaObservada = document.getElementById('area-observada').value;
+        function salvarProgressoAutomatico() {
+            const clienteId = document.getElementById('cliente-select')?.value;
+            const avaliador = document.getElementById('avaliador')?.value;
+            const dataInspecao = document.getElementById('data-inspecao')?.value;
+            const areaObservada = document.getElementById('area-observada')?.value;
 
             const respostas = [];
             const questoes = document.querySelectorAll('#checklist-questoes .mb-2');
 
             questoes.forEach((questao, index) => {
-                const descricao = questao.querySelector('p').textContent;
-                const conformidade = questao.querySelector('select').value;
-                const observacoes = questao.querySelector('textarea').value;
-                const anexo = questao.querySelector('input[type="file"]').files[0];
+                const descricao = questao.querySelector('p')?.textContent || '';
+                const conformidade = questao.querySelector('select')?.value || '';
+                const observacoes = questao.querySelector('textarea')?.value || '';
 
                 respostas.push({
                     id: index + 1,
                     descricao: descricao,
                     conformidade: conformidade,
-                    observacoes: observacoes,
-                    anexo: anexo ? anexo.name : null
+                    observacoes: observacoes
                 });
             });
 
@@ -491,29 +535,168 @@
                 respostas: respostas
             };
 
-            // Aqui você pode implementar a lógica para enviar os dados para o servidor
-            console.log('Dados do checklist:', dadosChecklist);
-            alert('Checklist salvo com sucesso!');
+            localStorage.setItem('checklistEmProgresso', JSON.stringify(dadosChecklist));
 
-            // Exemplo de como enviar os dados para o servidor usando fetch:
-            /*
+            if (!window.autoSaveInterval) {
+                window.autoSaveInterval = setInterval(enviarProgressoParaServidor, 5 * 60 * 1000);
+            }
+        }
+
+        function enviarProgressoParaServidor() {
+            const dadosChecklist = JSON.parse(localStorage.getItem('checklistEmProgresso'));
+            if (dadosChecklist) {
+                fetch('/salvar-progresso-checklist', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(dadosChecklist)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Progresso salvo no servidor:', data);
+                })
+                .catch((error) => {
+                    console.error('Erro ao salvar progresso:', error);
+                });
+            }
+        }
+
+        function salvarChecklist() {
+            const clienteId = document.getElementById('cliente-select')?.value;
+            const avaliador = document.getElementById('avaliador')?.value;
+            const dataInspecao = document.getElementById('data-inspecao')?.value;
+            const areaObservada = document.getElementById('area-observada')?.value;
+
+            if (!clienteId || !avaliador || !dataInspecao || !areaObservada) {
+                alert('Por favor, preencha todos os campos obrigatórios.');
+                return;
+            }
+
+            const respostas = [];
+            const questoes = document.querySelectorAll('#checklist-questoes .mb-2');
+            let somaConformidade = 0;
+            let totalQuestoes = 0;
+
+            questoes.forEach((questao, index) => {
+                const descricao = questao.querySelector('p')?.textContent || '';
+                const conformidade = questao.querySelector('select')?.value || '';
+                const observacoes = questao.querySelector('textarea')?.value || '';
+                const anexo = questao.querySelector('input[type="file"]')?.files[0];
+
+                if (conformidade && conformidade !== 'NA') {
+                    somaConformidade += parseInt(conformidade);
+                    totalQuestoes++;
+                }
+
+                respostas.push({
+                    id: index + 1,
+                    descricao: descricao,
+                    conformidade: conformidade,
+                    observacoes: observacoes,
+                    anexo: anexo ? anexo.name : null
+                });
+            });
+
+            const mediaConformidade = totalQuestoes > 0 ? (somaConformidade / totalQuestoes) : 0;
+            const porcentagemConformidade = (mediaConformidade).toFixed(2);
+
+            const dadosChecklist = {
+                clienteId: clienteId,
+                avaliador: avaliador,
+                dataInspecao: dataInspecao,
+                areaObservada: areaObservada,
+                respostas: respostas,
+                porcentagemConformidade: porcentagemConformidade
+            };
+
+            const formData = new FormData();
+            formData.append('dados', JSON.stringify(dadosChecklist));
+
+            questoes.forEach((questao, index) => {
+                const anexo = questao.querySelector('input[type="file"]')?.files[0];
+                if (anexo) {
+                    formData.append(`anexo_${index}`, anexo);
+                }
+            });
+
             fetch('/salvar-checklist', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(dadosChecklist)
+                body: formData
             })
             .then(response => response.json())
             .then(data => {
                 console.log('Sucesso:', data);
+                mostrarAvaliacaoDesempenho(porcentagemConformidade);
                 alert('Checklist salvo com sucesso!');
+                // Limpar o checklist em progresso do localStorage
+                localStorage.removeItem('checklistEmProgresso');
+                // Parar o autosave
+                clearInterval(window.autoSaveInterval);
             })
             .catch((error) => {
                 console.error('Erro:', error);
                 alert('Erro ao salvar o checklist. Por favor, tente novamente.');
             });
-            */
+        }
+
+        function atualizarAvaliacaoDesempenho() {
+            const questoes = document.querySelectorAll('#checklist-questoes .mb-2');
+            let somaConformidade = 0;
+            let totalQuestoes = 0;
+
+            questoes.forEach((questao) => {
+                const select = questao.querySelector('select');
+                if (select && select.value !== '') {
+                    const conformidade = select.value;
+                    somaConformidade += conformidade === 'NA' ? 0 : parseInt(conformidade);
+                    totalQuestoes++;
+                }
+            });
+
+            const mediaConformidade = totalQuestoes > 0 ? (somaConformidade / totalQuestoes) : 0;
+            const porcentagemConformidade = (mediaConformidade).toFixed(2);
+
+            mostrarAvaliacaoDesempenho(porcentagemConformidade);
+        }
+
+        function mostrarAvaliacaoDesempenho(porcentagem) {
+            const avaliacaoDiv = document.getElementById('avaliacao-desempenho');
+            const resultadoDiv = document.getElementById('resultado-avaliacao');
+            const porcentagemP = document.getElementById('porcentagem-conformidade');
+
+            if (!avaliacaoDiv || !resultadoDiv || !porcentagemP) {
+                console.error('Elementos de avaliação não encontrados');
+                return;
+            }
+
+            avaliacaoDiv.classList.remove('hidden');
+            porcentagemP.textContent = `Porcentagem de Conformidade: ${porcentagem}%`;
+
+            if (porcentagem >= 90) {
+                resultadoDiv.textContent = 'Desempenho Excelente';
+                resultadoDiv.className = 'p-4 rounded-lg text-white font-bold text-center bg-green-500';
+            } else if (porcentagem >= 70) {
+                resultadoDiv.textContent = 'Desempenho Ótimo';
+                resultadoDiv.className = 'p-4 rounded-lg text-white font-bold text-center bg-lime-500';
+            } else if (porcentagem >= 50) {
+                resultadoDiv.textContent = 'Desempenho Bom';
+                resultadoDiv.className = 'p-4 rounded-lg text-white font-bold text-center bg-yellow-500';
+            } else {
+                resultadoDiv.textContent = 'Desempenho Baixo';
+                resultadoDiv.className = 'p-4 rounded-lg text-white font-bold text-center bg-red-500';
+            }
+        }
+
+        // Adicione esta função para inicializar a avaliação de desempenho
+        function inicializarAvaliacaoDesempenho() {
+            const avaliacaoDiv = document.getElementById('avaliacao-desempenho');
+            if (avaliacaoDiv) {
+                avaliacaoDiv.classList.remove('hidden');
+                atualizarAvaliacaoDesempenho();
+            } else {
+                console.error('Elemento de avaliação não encontrado');
+            }
         }
     </script>
 </body>

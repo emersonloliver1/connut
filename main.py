@@ -10,6 +10,8 @@ from flask_migrate import Migrate
 from security.timestamp import init_session_timeout, check_session_timeout
 from datetime import datetime
 import io
+import json
+from sqlalchemy import Float
 
 load_dotenv()  # Carrega as variáveis de ambiente do arquivo .env
 
@@ -22,6 +24,7 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'sua_chave_secreta_aqui')
 
 # Configuração para upload de arquivos
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'txt', 'jpg', 'jpeg', 'png', 'gif'}
+app.config['UPLOAD_FOLDER'] = 'uploads'  # Adicione esta linha
 
 db = SQLAlchemy(app)
 login_manager = LoginManager()
@@ -363,6 +366,133 @@ def visualizar_documento(id):
         download_name=documento.nome
     )
 
+# Certifique-se de que a pasta de uploads existe
+if not os.path.exists(app.config['UPLOAD_FOLDER']):
+    os.makedirs(app.config['UPLOAD_FOLDER'])
+
+# Modelo para o Checklist
+class Checklist(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    cliente_id = db.Column(db.Integer, nullable=False)
+    avaliador = db.Column(db.String(100), nullable=False)
+    data_inspecao = db.Column(db.Date, nullable=False)
+    area_observada = db.Column(db.String(200), nullable=False)
+    data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
+    status = db.Column(db.String(20), default='em_progresso')
+    porcentagem_conformidade = db.Column(Float, nullable=True)
+
+# Modelo para as Respostas do Checklist
+class ChecklistResposta(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    checklist_id = db.Column(db.Integer, db.ForeignKey('checklist.id'), nullable=False)
+    questao_id = db.Column(db.Integer, nullable=False)
+    descricao = db.Column(db.Text, nullable=False)
+    conformidade = db.Column(db.String(10), nullable=False)
+    observacoes = db.Column(db.Text)
+    anexo = db.Column(db.String(200))
+
+# Inicialize o armazenamento local JSON
+local_storage = LocalJSONStorage()
+
+# ... (outras rotas existentes)
+
+@app.route('/salvar-checklist', methods=['POST'])
+@login_required
+def salvar_checklist_final():
+    data = request.form
+    json_data = json.loads(data.get('dados'))
+    
+    novo_checklist = Checklist(
+        cliente_id=json_data['clienteId'],
+        avaliador=json_data['avaliador'],
+        data_inspecao=datetime.strptime(json_data['dataInspecao'], '%Y-%m-%d').date(),
+        area_observada=json_data['areaObservada'],
+        status='concluido',
+        porcentagem_conformidade=float(json_data['porcentagemConformidade'])
+    )
+    db.session.add(novo_checklist)
+    db.session.flush()
+    
+    for resposta in json_data['respostas']:
+        nova_resposta = ChecklistResposta(
+            checklist_id=novo_checklist.id,
+            questao_id=resposta['id'],
+            descricao=resposta['descricao'],
+            conformidade=resposta['conformidade'],
+            observacoes=resposta['observacoes']
+        )
+        
+        if resposta.get('anexo'):
+            arquivo = request.files.get(f"anexo_{resposta['id']}")
+            if arquivo:
+                filename = secure_filename(arquivo.filename)
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                arquivo.save(file_path)
+                nova_resposta.anexo = filename
+        
+        db.session.add(nova_resposta)
+    
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Checklist salvo com sucesso!',
+        'id': novo_checklist.id,
+        'porcentagem_conformidade': novo_checklist.porcentagem_conformidade
+    }), 200
+
+# Remova ou comente a função salvar_checklist duplicada
+
+@app.route('/salvar-progresso-checklist', methods=['POST'])
+@login_required
+def salvar_progresso_checklist():
+    data = request.json
+    
+    # Verificar se já existe um checklist em progresso para este cliente
+    checklist_existente = Checklist.query.filter_by(
+        cliente_id=data['clienteId'],
+        status='em_progresso'
+    ).first()
+
+    if checklist_existente:
+        # Atualizar o checklist existente
+        checklist = checklist_existente
+    else:
+        # Criar novo checklist
+        checklist = Checklist(
+            cliente_id=data['clienteId'],
+            avaliador=data['avaliador'],
+            data_inspecao=datetime.strptime(data['dataInspecao'], '%Y-%m-%d').date(),
+            area_observada=data['areaObservada'],
+            status='em_progresso'
+        )
+        db.session.add(checklist)
+
+    # Atualizar ou criar respostas
+    for resposta_data in data['respostas']:
+        resposta = ChecklistResposta.query.filter_by(
+            checklist_id=checklist.id,
+            questao_id=resposta_data['id']
+        ).first()
+
+        if resposta:
+            # Atualizar resposta existente
+            resposta.conformidade = resposta_data['conformidade']
+            resposta.observacoes = resposta_data['observacoes']
+        else:
+            # Criar nova resposta
+            nova_resposta = ChecklistResposta(
+                checklist_id=checklist.id,
+                questao_id=resposta_data['id'],
+                descricao=resposta_data['descricao'],
+                conformidade=resposta_data['conformidade'],
+                observacoes=resposta_data['observacoes']
+            )
+            db.session.add(nova_resposta)
+
+    db.session.commit()
+    return jsonify({'message': 'Progresso do checklist salvo com sucesso!', 'id': checklist.id}), 200
+
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 8080))
-    app.run(debug=True, host='0.0.0.0', port=port)
+    with app.app_context():
+        db.create_all()  # Cria as tabelas no banco de dados se não existirem
+    app.run(debug=True)
