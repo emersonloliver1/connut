@@ -71,6 +71,11 @@
                 <!-- As questões serão geradas dinamicamente aqui -->
             </div>
 
+            <!-- Botão Salvar -->
+            <button onclick="salvarChecklist()" class="mt-6 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition duration-300">
+                Salvar Checklist
+            </button>
+
             <button onclick="voltarParaSelecao()" class="mt-4 bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition duration-300">
                 Voltar para Seleção de Checklist
             </button>
@@ -248,6 +253,123 @@
                             descricao: "Armazenamento do produto final: produtos avariados, com prazo de validade vencido, devolvidos ou recolhidos do mercado devidamente identificados e armazenados em local separado."
                         }
                     ]
+                },
+                {
+                    titulo: "5. Preparação de Alimentos",
+                    itens: [
+                        {
+                            id: "higienizacao_maos",
+                            descricao: "Durante a preparação dos alimentos os manipuladores realizam a higienização das mãos?"
+                        },
+                        {
+                            id: "exposicao_alimentos",
+                            descricao: "Durante a preparação dos alimentos os alimentos ficam expostos ou fora da temperatura adequada?"
+                        },
+                        {
+                            id: "contaminacao_cruzada",
+                            descricao: "Durante a preparação dos alimentos são adotadas medidas a fim de minimizar o risco de contaminação cruzada, evitando contato direto ou indireto entre alimentos crus, semi-preparado e preparados."
+                        },
+                        {
+                            id: "exposicao_temperatura_ambiente",
+                            descricao: "As matérias-primas e ingredientes caracterizados como produtos perecíveis são expostos a temperatura ambiente somente pelo tempo mínimo necessário para a preparação do alimento."
+                        },
+                        {
+                            id: "lavatorios_producao",
+                            descricao: "Existe lavatórios na área de produção: com água corrente, dotados preferencialmente de torneira com acionamento automático e em número suficiente de modo a atender todas as áreas com sabonete líquido inodoro."
+                        },
+                        {
+                            id: "acondicionamento_ingredientes",
+                            descricao: "As matérias-primas e ingredientes que não são utilizados em sua totalidade são adequadamente acondicionados e identificados com, no mínimo, as seguintes informações: designação da produção"
+                        }
+                    ]
+                },
+                {
+                    titulo: "6. Transporte de Alimentos",
+                    itens: [
+                        {
+                            id: "veiculos_higienizados",
+                            descricao: "Os alimentos são transportados em veículos higienizados, com medidas que garantem a ausência de vetores e pragas urbanas e dotados de cobertura para proteção da carga"
+                        },
+                        {
+                            id: "contaminacao_cruzada_transporte",
+                            descricao: "Durante o transporte de alimentos são adotadas medidas a fim de minimizar o risco de contaminação cruzada, evitando contato direto ou indireto entre alimentos crus, semi-preparado, prontos para consumo"
+                        },
+                        {
+                            id: "caixas_isotermicas",
+                            descricao: "Caixas Isotérmicas ISOBOX, em bom estado de higienização e conservação."
+                        }
+                    ]
+                },
+                {
+                    titulo: "7. Coleta de Amostra",
+                    itens: [
+                        {
+                            id: "coleta_amostras",
+                            descricao: "São coletadas amostras de todas as preparações, são devidamente identificadas (nome do estabelecimento, nome do produto, data e horário da coleta e nome de quem a realizou)."
+                        },
+                        {
+                            id: "armazenamento_amostras",
+                            descricao: "As amostras são armazenadas por 72 horas"
+                        }
+                    ]
+                },
+                {
+                    titulo: "8. Equipamento de Proteção Individual e Uniforme",
+                    itens: [
+                        {
+                            id: "uso_epi",
+                            descricao: "Os manipuladores utilizam equipamentos de proteção individual quando necessário."
+                        },
+                        {
+                            id: "funcionarios_limpeza",
+                            descricao: "Os funcionários que realizam a limpeza são capacitados para a atividade e utilizam uniforme diferenciado e equipamento de proteção individual para tanto."
+                        },
+                        {
+                            id: "estado_epis",
+                            descricao: "EPI's, em bom estado de higienização."
+                        }
+                    ]
+                },
+                {
+                    titulo: "9. POP - Procedimentos Operacionais Padronizados",
+                    itens: [
+                        {
+                            id: "pop_higienizacao_produtos",
+                            descricao: "POP Higienização: Produtos regularizados pelo Ministério da Saúde, guardados em local identificado, separados de alimentos e embalagens. Atentar para instruções de uso (finalidade, diluições, uso de EPIs)."
+                        },
+                        {
+                            id: "pop_higienizacao_utensilios",
+                            descricao: "POP Higienização: Disponibilidade dos utensílios (escovas, esponjas etc.) de uso exclusivo para esta atividade e dos EPIs necessários (luvas, óculos, botas, máscaras, etc.)."
+                        },
+                        {
+                            id: "pop_higiene_uniforme",
+                            descricao: "POP Higiene e Saúde dos Manipuladores: Uniforme de trabalho de cor clara, limpos e em bom estado de conservação, exclusivo para área de produção."
+                        },
+                        {
+                            id: "pop_higiene_asseio",
+                            descricao: "POP Higiene e Saúde dos Manipuladores: Asseio corporal, mãos limpas, unhas curtas, sem esmalte, sem adornos, manipuladores barbeados e com os cabelos protegidos."
+                        },
+                        {
+                            id: "pop_higiene_cartazes",
+                            descricao: "POP Higiene e Saúde dos Manipuladores: Cartazes de orientação aos manipuladores sobre a correta lavagem das mãos e demais hábitos de higiene, afixados em locais apropriados."
+                        },
+                        {
+                            id: "pop_higiene_treinamento",
+                            descricao: "POP Higiene e Saúde dos Manipuladores: Certificado de participação em Treinamento para Manipulação de Alimentos (2 anos)."
+                        },
+                        {
+                            id: "pop_agua_limpeza",
+                            descricao: "POP de Controle da Potabilidade da Água: Registro de limpeza da caixa de água semestral."
+                        },
+                        {
+                            id: "pop_pragas_certificado",
+                            descricao: "POP de Controle Integrado de Pragas: Certificado de desinsetização e desratização emitido por empresa licenciada pela Vigilância em Saúde"
+                        },
+                        {
+                            id: "pop_manutencao_equipamentos",
+                            descricao: "POP Manutenção preventiva e calibração de equipamentos: planilhas de controle da manutenção preventiva dos equipamentos ou certificados quando realizados por empresas terceirizadas"
+                        }
+                    ]
                 }
             ];
 
@@ -335,6 +457,63 @@
                     comentarioDiv.textContent = '';
                     comentarioDiv.className = 'mt-1 p-1 rounded';
             }
+        }
+
+        function salvarChecklist() {
+            const clienteId = document.getElementById('cliente-select').value;
+            const avaliador = document.getElementById('avaliador').value;
+            const dataInspecao = document.getElementById('data-inspecao').value;
+            const areaObservada = document.getElementById('area-observada').value;
+
+            const respostas = [];
+            const questoes = document.querySelectorAll('#checklist-questoes .mb-2');
+
+            questoes.forEach((questao, index) => {
+                const descricao = questao.querySelector('p').textContent;
+                const conformidade = questao.querySelector('select').value;
+                const observacoes = questao.querySelector('textarea').value;
+                const anexo = questao.querySelector('input[type="file"]').files[0];
+
+                respostas.push({
+                    id: index + 1,
+                    descricao: descricao,
+                    conformidade: conformidade,
+                    observacoes: observacoes,
+                    anexo: anexo ? anexo.name : null
+                });
+            });
+
+            const dadosChecklist = {
+                clienteId: clienteId,
+                avaliador: avaliador,
+                dataInspecao: dataInspecao,
+                areaObservada: areaObservada,
+                respostas: respostas
+            };
+
+            // Aqui você pode implementar a lógica para enviar os dados para o servidor
+            console.log('Dados do checklist:', dadosChecklist);
+            alert('Checklist salvo com sucesso!');
+
+            // Exemplo de como enviar os dados para o servidor usando fetch:
+            /*
+            fetch('/salvar-checklist', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(dadosChecklist)
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Sucesso:', data);
+                alert('Checklist salvo com sucesso!');
+            })
+            .catch((error) => {
+                console.error('Erro:', error);
+                alert('Erro ao salvar o checklist. Por favor, tente novamente.');
+            });
+            */
         }
     </script>
 </body>
