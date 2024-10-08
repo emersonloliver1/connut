@@ -128,55 +128,107 @@
             const questoesContainer = document.getElementById('checklist-questoes');
             questoesContainer.innerHTML = ''; // Limpa questões anteriores
 
-            // Exemplo de geração de uma questão
-            const questao = document.createElement('div');
-            questao.className = 'mb-4 p-4 rounded';
-            questao.innerHTML = `
-                <h3 class="text-xl font-bold mb-4">1. Instalações</h3>
-                <div class="mb-4">
-                    <p class="font-semibold">Piso, em bom estado de higienização e conservação.</p>
-                    <div class="flex items-center space-x-4 mt-2">
-                        <select onchange="atualizarConformidade(this)" class="form-select mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                            <option value="">Selecione uma nota</option>
-                            <option value="100">100%</option>
-                            <option value="50">50%</option>
-                            <option value="25">25%</option>
-                            <option value="0">0%</option>
-                            <option value="NA">N/A</option>
-                        </select>
-                    </div>
-                    <div id="comentario-piso" class="mt-2 p-2 rounded font-bold text-black"></div>
-                    <textarea class="mt-2 w-full p-2 border rounded" placeholder="Observações..."></textarea>
-                    <div class="mt-2">
-                        <input type="file" id="anexo-piso" class="hidden" accept="image/*,application/pdf">
-                        <label for="anexo-piso" class="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded inline-block">
-                            Adicionar Anexo
-                        </label>
-                        <span id="nome-arquivo-piso" class="ml-2"></span>
-                    </div>
-                </div>
-            `;
-            questoesContainer.appendChild(questao);
-
-            // Adiciona evento para exibir o nome do arquivo selecionado
-            const inputAnexo = questao.querySelector('input[type="file"]');
-            const spanNomeArquivo = questao.querySelector('#nome-arquivo-piso');
-            inputAnexo.addEventListener('change', function(e) {
-                if (this.files && this.files[0]) {
-                    spanNomeArquivo.textContent = this.files[0].name;
-                } else {
-                    spanNomeArquivo.textContent = '';
+            const questoes = [
+                {
+                    titulo: "1. Instalações",
+                    itens: [
+                        {
+                            id: "piso",
+                            descricao: "Piso, em bom estado de higienização e conservação."
+                        },
+                        {
+                            id: "parede",
+                            descricao: "Parede, em bom estado de higienização e conservação."
+                        },
+                        {
+                            id: "teto",
+                            descricao: "Teto, em bom estado de higienização e conservação."
+                        },
+                        {
+                            id: "portas_janelas",
+                            descricao: "Portas e Janelas, em bom estado de higienização e conservação."
+                        },
+                        {
+                            id: "area_externa",
+                            descricao: "A área externa, limpa e organizada."
+                        },
+                        {
+                            id: "tomadas_disjuntores",
+                            descricao: "Tomadas, disjuntores e interruptores limpos e conservados."
+                        },
+                        {
+                            id: "janelas_aberturas",
+                            descricao: "Janelas e demais aberturas (exaustor, coifa e outros): livres de falhas, rachaduras, com proteção contra insetos e roedores (telas milimetradas)."
+                        },
+                        {
+                            id: "ventilacao",
+                            descricao: "Ventilação: capaz de garantir o conforto térmico e o ambiente livre de fungos, gases, fumaça e outros."
+                        },
+                        {
+                            id: "porta_bloqueio",
+                            descricao: "Porta com bloqueio para entrada de vetores e poeiras - cortina de ar e veda porta."
+                        }
+                    ]
                 }
+            ];
+
+            questoes.forEach(secao => {
+                const secaoElement = document.createElement('div');
+                secaoElement.className = 'mb-4'; // Reduzido de 'mb-6' para 'mb-4'
+                secaoElement.innerHTML = `<h3 class="text-xl font-bold mb-2">${secao.titulo}</h3>`; // Reduzido de 'mb-4' para 'mb-2'
+
+                secao.itens.forEach(item => {
+                    const questao = document.createElement('div');
+                    questao.className = 'mb-2 p-3 rounded'; // Reduzido de 'mb-4 p-4' para 'mb-2 p-3'
+                    questao.innerHTML = `
+                        <div class="mb-2"> <!-- Reduzido de 'mb-4' para 'mb-2' -->
+                            <p class="font-semibold">${item.descricao}</p>
+                            <div class="flex items-center space-x-4 mt-1"> <!-- Reduzido de 'mt-2' para 'mt-1' -->
+                                <select onchange="atualizarConformidade(this)" class="form-select mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                                    <option value="">Selecione uma nota</option>
+                                    <option value="100">100%</option>
+                                    <option value="50">50%</option>
+                                    <option value="25">25%</option>
+                                    <option value="0">0%</option>
+                                    <option value="NA">N/A</option>
+                                </select>
+                            </div>
+                            <div id="comentario-${item.id}" class="mt-1 p-1 rounded font-bold text-black"></div> <!-- Reduzido de 'mt-2 p-2' para 'mt-1 p-1' -->
+                            <textarea class="mt-1 w-full p-2 border rounded" placeholder="Observações..."></textarea> <!-- Reduzido de 'mt-2' para 'mt-1' -->
+                            <div class="mt-1"> <!-- Reduzido de 'mt-2' para 'mt-1' -->
+                                <input type="file" id="anexo-${item.id}" class="hidden" accept="image/*,application/pdf">
+                                <label for="anexo-${item.id}" class="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded inline-block"> <!-- Reduzido padding -->
+                                    Adicionar Anexo
+                                </label>
+                                <span id="nome-arquivo-${item.id}" class="ml-2"></span>
+                            </div>
+                        </div>
+                    `;
+                    secaoElement.appendChild(questao);
+
+                    // Adiciona evento para exibir o nome do arquivo selecionado
+                    const inputAnexo = questao.querySelector('input[type="file"]');
+                    const spanNomeArquivo = questao.querySelector(`#nome-arquivo-${item.id}`);
+                    inputAnexo.addEventListener('change', function(e) {
+                        if (this.files && this.files[0]) {
+                            spanNomeArquivo.textContent = this.files[0].name;
+                        } else {
+                            spanNomeArquivo.textContent = '';
+                        }
+                    });
+                });
+
+                questoesContainer.appendChild(secaoElement);
             });
         }
 
         function atualizarConformidade(select) {
             const valor = select.value;
-            const questao = select.closest('.mb-4');
+            const questao = select.closest('.mb-2'); // Alterado para selecionar o elemento pai mais próximo
             const comentarioDiv = questao.querySelector('[id^="comentario-"]');
             
-            questao.className = 'mb-4 p-4 rounded';
-            comentarioDiv.className = 'mt-2 p-2 rounded font-bold text-black';
+            questao.className = 'mb-2 p-3 rounded'; // Mantém as classes originais
+            comentarioDiv.className = 'mt-1 p-1 rounded font-bold text-black';
             
             switch(valor) {
                 case '100':
@@ -202,7 +254,7 @@
                 default:
                     questao.classList.remove('conformidade-100', 'conformidade-50', 'conformidade-25', 'conformidade-0', 'conformidade-na');
                     comentarioDiv.textContent = '';
-                    comentarioDiv.className = 'mt-2 p-2 rounded';
+                    comentarioDiv.className = 'mt-1 p-1 rounded';
             }
         }
     </script>
