@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Relatórios</h1>
+
+<form method="POST" action="{{ url_for('relatorios') }}">
+    <label for="cliente">Selecione o cliente:</label>
+    <select name="cliente" id="cliente">
+        {% for cliente in clientes %}
+        <option value="{{ cliente.id }}" {% if cliente_selecionado and cliente_selecionado.id == cliente.id %}selected{% endif %}>
+            {{ cliente.nome }}
+        </option>
+        {% endfor %}
+    </select>
+    <button type="submit">Gerar Relatório</button>
+</form>
+
+{% if relatorio %}
+<div id="relatorio">
+    <h2>Relatório para {{ relatorio.nome_cliente }}</h2>
+    <p>Total de Checklists: {{ relatorio.total_checklists }}</p>
+    <p>Média de Conformidade: {{ relatorio.media_conformidade }}%</p>
+    <p>Total de Documentos: {{ relatorio.total_documentos }}</p>
+    
+    <h3>Checklists</h3>
+    <ul>
+    {% for checklist in relatorio.checklists %}
+        <li>
+            Data: {{ checklist.data_inspecao.strftime('%d/%m/%Y') }} - 
+            Área: {{ checklist.area_observada }} - 
+            Conformidade: {{ checklist.porcentagem_conformidade }}%
+        </li>
+    {% endfor %}
+    </ul>
+    
+    <h3>Documentos</h3>
+    <ul>
+    {% for documento in relatorio.documentos %}
+        <li>{{ documento.nome }} ({{ documento.tipo_arquivo }})</li>
+    {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% endblock %}

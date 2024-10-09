@@ -12,12 +12,13 @@ from datetime import datetime
 import io
 import json
 from sqlalchemy import Float
+from models import db, User, Cliente, Documento, Checklist, ChecklistResposta
 
 load_dotenv()  # Carrega as variáveis de ambiente do arquivo .env
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 
-# Configuração do banco de dados SQLite na pasta instance
+# Configuração do banco de dados
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///instance/site.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'sua_chave_secreta_aqui')
@@ -26,42 +27,18 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'sua_chave_secreta_aqui')
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'txt', 'jpg', 'jpeg', 'png', 'gif'}
 app.config['UPLOAD_FOLDER'] = 'uploads'  # Adicione esta linha
 
-db = SQLAlchemy(app)
+# Inicialize o db com o app
+db.init_app(app)
+
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
-
-document_storage = LocalJSONStorage()
-
-class User(UserMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100))
-    email = db.Column(db.String(100), unique=True)
-    password = db.Column(db.String(100))
 
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-class Cliente(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    nome = db.Column(db.String(100), nullable=False)
-    tipo_pessoa = db.Column(db.String(10), nullable=False)
-    documento = db.Column(db.String(20), unique=True, nullable=False)
-    telefone = db.Column(db.String(20))
-    cep = db.Column(db.String(10))
-    endereco = db.Column(db.String(200))
-    numero = db.Column(db.String(10))
-    complemento = db.Column(db.String(100))
-    cidade = db.Column(db.String(100))
-    estado = db.Column(db.String(2))
-
-class Documento(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    nome = db.Column(db.String(100), nullable=False)
-    tipo_arquivo = db.Column(db.String(50), nullable=False)
-    cliente_id = db.Column(db.Integer, db.ForeignKey('cliente.id'), nullable=False)
-    cliente = db.relationship('Cliente', backref=db.backref('documentos', lazy=True))
+document_storage = LocalJSONStorage()
 
 migrate = Migrate(app, db)
 
@@ -109,7 +86,7 @@ def index():
         {"icon": "📎", "text": "Documentos", "url": url_for('documentos')},
         {"icon": "📋", "text": "Cardápios", "url": "#"},
         {"icon": "🌡️", "text": "Temperaturas", "url": "#"},
-        {"icon": "📊", "text": "Relatórios", "url": "#"},
+        {"icon": "📊", "text": "Relatórios", "url": url_for('relatorios')},
         {"icon": "✅", "text": "Checklists", "url": url_for('checklists')},
         {"icon": "📊", "text": "Avaliações", "url": "#"},
         {"icon": "💬", "text": "Atendimentos", "url": "#"},
@@ -370,28 +347,6 @@ def visualizar_documento(id):
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
 
-# Modelo para o Checklist
-class Checklist(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    cliente_id = db.Column(db.Integer, nullable=False)
-    avaliador = db.Column(db.String(100), nullable=False)
-    data_inspecao = db.Column(db.Date, nullable=False)
-    area_observada = db.Column(db.String(200), nullable=False)
-    data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
-    status = db.Column(db.String(20), default='em_progresso')
-    porcentagem_conformidade = db.Column(Float, nullable=True)
-    tipo_checklist = db.Column(db.String(50), nullable=False)  # Adicione esta linha
-
-# Modelo para as Respostas do Checklist
-class ChecklistResposta(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    checklist_id = db.Column(db.Integer, db.ForeignKey('checklist.id'), nullable=False)
-    questao_id = db.Column(db.Integer, nullable=False)
-    descricao = db.Column(db.Text, nullable=False)
-    conformidade = db.Column(db.String(10), nullable=False)
-    observacoes = db.Column(db.Text)
-    anexo = db.Column(db.String(200))
-
 # Inicialize o armazenamento local JSON
 local_storage = LocalJSONStorage()
 
@@ -564,6 +519,43 @@ def check_db():
             'status': 'Error',
             'message': f'Erro ao conectar com o banco de dados: {str(e)}'
         }), 500
+
+@app.route('/relatorios', methods=['GET', 'POST'])
+@login_required
+@check_session_timeout
+def relatorios():
+    clientes = Cliente.query.all()
+    
+    if request.method == 'POST':
+        cliente_id = request.form.get('cliente')
+        cliente = Cliente.query.get(cliente_id)
+        
+        if cliente:
+            # Buscar checklists do cliente
+            checklists = Checklist.query.filter_by(cliente_id=cliente.id).all()
+            
+            # Calcular estatísticas
+            total_checklists = len(checklists)
+            media_conformidade = sum(c.porcentagem_conformidade for c in checklists if c.porcentagem_conformidade is not None) / total_checklists if total_checklists > 0 else 0
+            
+            # Buscar documentos do cliente
+            documentos = Documento.query.filter_by(cliente_id=cliente.id).all()
+            
+            relatorio = {
+                'nome_cliente': cliente.nome,
+                'total_checklists': total_checklists,
+                'media_conformidade': round(media_conformidade, 2),
+                'total_documentos': len(documentos),
+                'checklists': checklists,
+                'documentos': documentos
+            }
+        else:
+            relatorio = None
+            flash('Cliente não encontrado.', 'error')
+        
+        return render_template('relatorios.html', clientes=clientes, relatorio=relatorio, cliente_selecionado=cliente)
+    
+    return render_template('relatorios.html', clientes=clientes)
 
 if __name__ == '__main__':
     with app.app_context():
