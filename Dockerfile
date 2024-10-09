@@ -31,4 +31,4 @@ ENV PORT=8080
 # RUN flask db upgrade
 
 # Comando para rodar a aplicação
-CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 main:app
+CMD ["python", "main.py"]

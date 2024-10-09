@@ -13,6 +13,12 @@ import io
 import json
 from sqlalchemy import Float
 from models import db, User, Cliente, Documento, Checklist, ChecklistResposta
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Image
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from io import BytesIO
 
 load_dotenv()  # Carrega as variáveis de ambiente do arquivo .env
 
@@ -28,7 +34,7 @@ ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'txt', 'jpg', 'jpeg', 'png', 'gif'}
 app.config['UPLOAD_FOLDER'] = 'uploads'  # Adicione esta linha
 
 # Inicialize o db com o app
-db.init_app(app)
+db = SQLAlchemy(app)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -355,46 +361,46 @@ local_storage = LocalJSONStorage()
 @app.route('/salvar-checklist', methods=['POST'])
 @login_required
 def salvar_checklist_final():
-    data = request.form
-    json_data = json.loads(data.get('dados'))
-    
-    novo_checklist = Checklist(
-        cliente_id=json_data['clienteId'],
-        avaliador=json_data['avaliador'],
-        data_inspecao=datetime.strptime(json_data['dataInspecao'], '%Y-%m-%d').date(),
-        area_observada=json_data['areaObservada'],
-        status='concluido',
-        porcentagem_conformidade=float(json_data['porcentagemConformidade'])
-    )
-    db.session.add(novo_checklist)
-    db.session.flush()
-    
-    for resposta in json_data['respostas']:
-        nova_resposta = ChecklistResposta(
-            checklist_id=novo_checklist.id,
-            questao_id=resposta['id'],
-            descricao=resposta['descricao'],
-            conformidade=resposta['conformidade'],
-            observacoes=resposta['observacoes']
+    try:
+        data = request.form
+        json_data = json.loads(data.get('dados'))
+        
+        print(f"Dados recebidos: {json_data}")  # Log dos dados recebidos
+        
+        tipo_checklist = json_data.get('tipoChecklist')
+        print(f"Tipo de checklist: {tipo_checklist}")  # Log do tipo de checklist
+        
+        novo_checklist = Checklist(
+            cliente_id=json_data['clienteId'],
+            avaliador=json_data['avaliador'],
+            data_inspecao=datetime.strptime(json_data['dataInspecao'], '%Y-%m-%d').date(),
+            area_observada=json_data['areaObservada'],
+            status='concluido',
+            porcentagem_conformidade=float(json_data['porcentagemConformidade']),
+            tipo_checklist=tipo_checklist
         )
+        db.session.add(novo_checklist)
+        db.session.flush()
         
-        if resposta.get('anexo'):
-            arquivo = request.files.get(f"anexo_{resposta['id']}")
-            if arquivo:
-                filename = secure_filename(arquivo.filename)
-                file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                arquivo.save(file_path)
-                nova_resposta.anexo = filename
+        print(f"Novo checklist criado: ID={novo_checklist.id}")  # Log do novo checklist
         
-        db.session.add(nova_resposta)
-    
-    db.session.commit()
-    
-    return jsonify({
-        'message': 'Checklist salvo com sucesso!',
-        'id': novo_checklist.id,
-        'porcentagem_conformidade': novo_checklist.porcentagem_conformidade
-    }), 200
+        for resposta in json_data['respostas']:
+            nova_resposta = ChecklistResposta(
+                checklist_id=novo_checklist.id,
+                questao_id=resposta['questaoId'],
+                descricao=resposta['descricao'],
+                conformidade=resposta['conformidade'],
+                observacoes=resposta.get('observacoes', '')
+            )
+            db.session.add(nova_resposta)
+        
+        db.session.commit()
+        print("Checklist salvo com sucesso")  # Log de sucesso
+        return jsonify({"message": "Checklist salvo com sucesso!", "id": novo_checklist.id}), 200
+    except Exception as e:
+        db.session.rollback()
+        print(f"Erro ao salvar checklist: {str(e)}")  # Log de erro
+        return jsonify({"error": str(e)}), 500
 
 # Remova ou comente a função salvar_checklist duplicada
 
@@ -531,31 +537,112 @@ def relatorios():
         cliente = Cliente.query.get(cliente_id)
         
         if cliente:
-            # Buscar checklists do cliente
             checklists = Checklist.query.filter_by(cliente_id=cliente.id).all()
             
-            # Calcular estatísticas
-            total_checklists = len(checklists)
-            media_conformidade = sum(c.porcentagem_conformidade for c in checklists if c.porcentagem_conformidade is not None) / total_checklists if total_checklists > 0 else 0
-            
-            # Buscar documentos do cliente
-            documentos = Documento.query.filter_by(cliente_id=cliente.id).all()
-            
-            relatorio = {
-                'nome_cliente': cliente.nome,
-                'total_checklists': total_checklists,
-                'media_conformidade': round(media_conformidade, 2),
-                'total_documentos': len(documentos),
-                'checklists': checklists,
-                'documentos': documentos
-            }
+            return render_template('selecao_checklist.html', 
+                                   cliente=cliente, 
+                                   checklists=checklists)
         else:
-            relatorio = None
             flash('Cliente não encontrado.', 'error')
-        
-        return render_template('relatorios.html', clientes=clientes, relatorio=relatorio, cliente_selecionado=cliente)
     
     return render_template('relatorios.html', clientes=clientes)
+
+@app.route('/gerar_relatorio/<int:cliente_id>/<int:checklist_id>')
+@login_required
+@check_session_timeout
+def gerar_relatorio(cliente_id, checklist_id):
+    cliente = Cliente.query.get_or_404(cliente_id)
+    checklist = Checklist.query.get_or_404(checklist_id)
+    
+    respostas = ChecklistResposta.query.filter_by(checklist_id=checklist.id).all()
+    
+    documentos = Documento.query.filter_by(cliente_id=cliente.id).all()
+    
+    relatorio = {
+        'cliente_id': cliente.id,
+        'checklist_id': checklist.id,
+        'nome_cliente': cliente.nome,
+        'tipo_checklist': checklist.tipo_checklist,
+        'data_inspecao': checklist.data_inspecao,
+        'area_observada': checklist.area_observada,
+        'avaliador': checklist.avaliador,
+        'porcentagem_conformidade': checklist.porcentagem_conformidade,
+        'respostas': respostas,
+        'total_documentos': len(documentos),
+        'documentos': documentos
+    }
+    
+    return render_template('relatorio_detalhado.html', relatorio=relatorio)
+
+@app.route('/exportar_pdf/<int:cliente_id>/<int:checklist_id>')
+@login_required
+@check_session_timeout
+def exportar_pdf(cliente_id, checklist_id):
+    cliente = Cliente.query.get_or_404(cliente_id)
+    checklist = Checklist.query.get_or_404(checklist_id)
+    respostas = ChecklistResposta.query.filter_by(checklist_id=checklist.id).all()
+    
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
+    elements = []
+    
+    styles = getSampleStyleSheet()
+    title_style = styles['Heading1']
+    subtitle_style = styles['Heading2']
+    normal_style = styles['Normal']
+    
+    # Adicionar logo
+    logo_path = 'static/logo.jpg'
+    img = Image(logo_path, width=2*inch, height=1*inch)
+    elements.append(img)
+    
+    elements.append(Paragraph(f"Relatório de Checklist - {cliente.nome}", title_style))
+    elements.append(Paragraph(f"Tipo de Checklist: {checklist.tipo_checklist}", normal_style))
+    elements.append(Paragraph(f"Data da Inspeção: {checklist.data_inspecao.strftime('%d/%m/%Y')}", normal_style))
+    elements.append(Paragraph(f"Área Observada: {checklist.area_observada}", normal_style))
+    elements.append(Paragraph(f"Avaliador: {checklist.avaliador}", normal_style))
+    elements.append(Paragraph(f"Conformidade: {checklist.porcentagem_conformidade:.2f}%", normal_style))
+    
+    elements.append(Paragraph("Respostas", subtitle_style))
+    
+    data = [['Questão', 'Conformidade', 'Observações']]
+    for resposta in respostas:
+        data.append([
+            Paragraph(resposta.descricao, normal_style),
+            resposta.conformidade,
+            Paragraph(resposta.observacoes or '', normal_style)
+        ])
+    
+    table = Table(data, colWidths=[250, 70, 150])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 10),
+        ('TOPPADDING', (0, 1), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+    
+    elements.append(table)
+    
+    doc.build(elements)
+    
+    buffer.seek(0)
+    
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name=f'relatorio_{cliente.nome}_{checklist.data_inspecao}.pdf',
+        mimetype='application/pdf'
+    )
 
 if __name__ == '__main__':
     with app.app_context():

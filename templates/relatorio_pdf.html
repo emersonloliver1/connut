@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Relatório de Checklist</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        h1, h2 { color: #333; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <h1>Relatório de Checklist</h1>
+    <h2>Cliente: {{ cliente.nome }}</h2>
+    <p>Tipo de Checklist: {{ checklist.tipo_checklist }}</p>
+    <p>Data da Inspeção: {{ checklist.data_inspecao.strftime('%d/%m/%Y') }}</p>
+    <p>Área Observada: {{ checklist.area_observada }}</p>
+    <p>Avaliador: {{ checklist.avaliador }}</p>
+    <p>Conformidade: {{ "%.2f"|format(checklist.porcentagem_conformidade) }}%</p>
+    
+    <h3>Respostas</h3>
+    <table>
+        <tr>
+            <th>Questão</th>
+            <th>Conformidade</th>
+            <th>Observações</th>
+        </tr>
+        {% for resposta in respostas %}
+        <tr>
+            <td>{{ resposta.descricao }}</td>
+            <td>{{ resposta.conformidade }}</td>
+            <td>{{ resposta.observacoes }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>

@@ -32,14 +32,16 @@ class Documento(db.Model):
 
 class Checklist(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    cliente_id = db.Column(db.Integer, nullable=False)
+    cliente_id = db.Column(db.Integer, db.ForeignKey('cliente.id'), nullable=False)
+    tipo_checklist = db.Column(db.String(50), nullable=False)
     avaliador = db.Column(db.String(100), nullable=False)
     data_inspecao = db.Column(db.Date, nullable=False)
     area_observada = db.Column(db.String(200), nullable=False)
-    data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
     status = db.Column(db.String(20), default='em_progresso')
     porcentagem_conformidade = db.Column(db.Float, nullable=True)
-    tipo_checklist = db.Column(db.String(50), nullable=False)
+    data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
+
+    cliente = db.relationship('Cliente', backref=db.backref('checklists', lazy=True))
 
 class ChecklistResposta(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -49,3 +51,5 @@ class ChecklistResposta(db.Model):
     conformidade = db.Column(db.String(10), nullable=False)
     observacoes = db.Column(db.Text)
     anexo = db.Column(db.String(200))
+
+    checklist = db.relationship('Checklist', backref=db.backref('respostas', lazy=True))

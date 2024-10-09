@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Seleção de Checklist - CONNUT{% endblock %}
+
+{% block content %}
+<div class="container mx-auto p-4">
+    <div class="bg-white rounded-lg shadow-md p-6 mt-4">
+        <h2 class="text-2xl font-bold mb-4 text-center text-gray-800">Checklists para {{ cliente.nome }}</h2>
+        
+        {% if checklists %}
+            <ul class="list-disc pl-5 mb-4">
+            {% for checklist in checklists %}
+                <li>
+                    <a href="{{ url_for('gerar_relatorio', cliente_id=cliente.id, checklist_id=checklist.id) }}" class="text-blue-500 hover:underline">
+                        {{ checklist.tipo_checklist }} - 
+                        Data: {{ checklist.data_inspecao.strftime('%d/%m/%Y') }} - 
+                        Área: {{ checklist.area_observada }} - 
+                        Conformidade: {% if checklist.porcentagem_conformidade is not none %}{{ "%.2f"|format(checklist.porcentagem_conformidade) }}%{% else %}N/A{% endif %}
+                    </a>
+                </li>
+            {% endfor %}
+            </ul>
+        {% else %}
+            <p class="mb-4">Nenhum checklist encontrado para este cliente.</p>
+        {% endif %}
+        
+        <a href="{{ url_for('relatorios') }}" class="inline-block mt-4 bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition duration-300">
+            Voltar para Seleção de Cliente
+        </a>
+    </div>
+</div>
+{% endblock %}
