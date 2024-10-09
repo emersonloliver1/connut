@@ -380,6 +380,7 @@ class Checklist(db.Model):
     data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
     status = db.Column(db.String(20), default='em_progresso')
     porcentagem_conformidade = db.Column(Float, nullable=True)
+    tipo_checklist = db.Column(db.String(50), nullable=False)  # Adicione esta linha
 
 # Modelo para as Respostas do Checklist
 class ChecklistResposta(db.Model):
@@ -492,8 +493,53 @@ def salvar_progresso_checklist():
     db.session.commit()
     return jsonify({'message': 'Progresso do checklist salvo com sucesso!', 'id': checklist.id}), 200
 
+@app.route('/salvar-checklist-rdc216', methods=['POST'])
+@login_required
+def salvar_checklist_rdc216():
+    data = request.form
+    json_data = json.loads(data.get('dados'))
+    
+    novo_checklist = Checklist(
+        cliente_id=json_data['clienteId'],
+        avaliador=json_data['avaliador'],
+        data_inspecao=datetime.strptime(json_data['dataInspecao'], '%Y-%m-%d').date(),
+        area_observada=json_data['areaObservada'],
+        status='concluido',
+        porcentagem_conformidade=float(json_data['porcentagemConformidade']),
+        tipo_checklist='rdc216'  # Adicionando um campo para diferenciar o tipo de checklist
+    )
+    db.session.add(novo_checklist)
+    db.session.flush()
+    
+    for resposta in json_data['respostas']:
+        nova_resposta = ChecklistResposta(
+            checklist_id=novo_checklist.id,
+            questao_id=resposta['id'],
+            descricao=resposta['descricao'],
+            conformidade=resposta['conformidade'],
+            observacoes=resposta['observacoes']
+        )
+        
+        if resposta.get('anexo'):
+            arquivo = request.files.get(f"anexo_{resposta['id']}")
+            if arquivo:
+                filename = secure_filename(arquivo.filename)
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                arquivo.save(file_path)
+                nova_resposta.anexo = filename
+        
+        db.session.add(nova_resposta)
+    
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Checklist RDC 216 salvo com sucesso!',
+        'id': novo_checklist.id,
+        'porcentagem_conformidade': novo_checklist.porcentagem_conformidade
+    }), 200
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()  # Cria as tabelas no banco de dados se não existirem
     port = int(os.environ.get('PORT', 8080))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(host='0.0.0.0', port=port, debug=True, use_reloader=True)
