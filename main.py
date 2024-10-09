@@ -496,47 +496,74 @@ def salvar_progresso_checklist():
 @app.route('/salvar-checklist-rdc216', methods=['POST'])
 @login_required
 def salvar_checklist_rdc216():
-    data = request.form
-    json_data = json.loads(data.get('dados'))
-    
-    novo_checklist = Checklist(
-        cliente_id=json_data['clienteId'],
-        avaliador=json_data['avaliador'],
-        data_inspecao=datetime.strptime(json_data['dataInspecao'], '%Y-%m-%d').date(),
-        area_observada=json_data['areaObservada'],
-        status='concluido',
-        porcentagem_conformidade=float(json_data['porcentagemConformidade']),
-        tipo_checklist='rdc216'  # Adicionando um campo para diferenciar o tipo de checklist
-    )
-    db.session.add(novo_checklist)
-    db.session.flush()
-    
-    for resposta in json_data['respostas']:
-        nova_resposta = ChecklistResposta(
-            checklist_id=novo_checklist.id,
-            questao_id=resposta['id'],
-            descricao=resposta['descricao'],
-            conformidade=resposta['conformidade'],
-            observacoes=resposta['observacoes']
+    try:
+        data = request.form
+        json_data = json.loads(data.get('dados'))
+        
+        app.logger.info(f"Dados recebidos para salvar checklist RDC 216: {json_data}")
+        
+        novo_checklist = Checklist(
+            cliente_id=json_data['clienteId'],
+            avaliador=json_data['avaliador'],
+            data_inspecao=datetime.strptime(json_data['dataInspecao'], '%Y-%m-%d').date(),
+            area_observada=json_data['areaObservada'],
+            status='concluido',
+            porcentagem_conformidade=float(json_data['porcentagemConformidade']),
+            tipo_checklist='rdc216'
         )
+        db.session.add(novo_checklist)
+        db.session.flush()
         
-        if resposta.get('anexo'):
-            arquivo = request.files.get(f"anexo_{resposta['id']}")
-            if arquivo:
-                filename = secure_filename(arquivo.filename)
-                file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                arquivo.save(file_path)
-                nova_resposta.anexo = filename
+        # Adicione um log aqui para verificar se o checklist está sendo salvo corretamente
+        app.logger.info(f"Novo checklist RDC 216 salvo: ID={novo_checklist.id}, Tipo={novo_checklist.tipo_checklist}")
         
-        db.session.add(nova_resposta)
-    
-    db.session.commit()
-    
-    return jsonify({
-        'message': 'Checklist RDC 216 salvo com sucesso!',
-        'id': novo_checklist.id,
-        'porcentagem_conformidade': novo_checklist.porcentagem_conformidade
-    }), 200
+        for resposta in json_data['respostas']:
+            nova_resposta = ChecklistResposta(
+                checklist_id=novo_checklist.id,
+                questao_id=resposta['id'],
+                descricao=resposta['descricao'],
+                conformidade=resposta['conformidade'],
+                observacoes=resposta['observacoes']
+            )
+            
+            if resposta.get('anexo'):
+                arquivo = request.files.get(f"anexo_{resposta['id']}")
+                if arquivo:
+                    filename = secure_filename(arquivo.filename)
+                    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                    arquivo.save(file_path)
+                    nova_resposta.anexo = filename
+            
+            db.session.add(nova_resposta)
+        
+        db.session.commit()
+        
+        app.logger.info(f"Checklist RDC 216 salvo com sucesso: ID={novo_checklist.id}")
+        
+        return jsonify({
+            'message': 'Checklist RDC 216 salvo com sucesso!',
+            'id': novo_checklist.id,
+            'porcentagem_conformidade': novo_checklist.porcentagem_conformidade
+        }), 200
+    except Exception as e:
+        app.logger.error(f"Erro ao salvar checklist RDC 216: {str(e)}")
+        db.session.rollback()
+        return jsonify({'error': f'Erro ao salvar checklist: {str(e)}'}), 500
+
+@app.route('/check-db')
+def check_db():
+    try:
+        # Tente fazer uma consulta simples
+        checklist_count = Checklist.query.count()
+        return jsonify({
+            'status': 'OK',
+            'message': f'Conexão com o banco de dados estabelecida. Total de checklists: {checklist_count}'
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'Error',
+            'message': f'Erro ao conectar com o banco de dados: {str(e)}'
+        }), 500
 
 if __name__ == '__main__':
     with app.app_context():

@@ -542,7 +542,11 @@
                     comentarioDiv.className = 'mt-1 p-1 rounded';
             }
             salvarProgressoAutomatico();
-            atualizarAvaliacaoDesempenho();
+            if (checklistType === 'higienico-sanitario') {
+                atualizarAvaliacaoDesempenho();
+            } else if (checklistType === 'rdc216') {
+                atualizarAvaliacaoDesempenhoRDC216();
+            }
         }
 
         function salvarProgressoAutomatico() {
