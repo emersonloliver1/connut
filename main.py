@@ -26,7 +26,7 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'sua_chave_secreta_aqui')
 
 # Configuração para upload de arquivos
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'txt', 'jpg', 'jpeg', 'png', 'gif'}
-app.config['UPLOAD_FOLDER'] = 'uploads'  # Adicione esta linha
+app.config['UPLOAD_FOLDER'] = 'uploads'
 
 # Inicialize o db com o app
 db.init_app(app)
@@ -65,11 +65,12 @@ def register():
         name = request.form.get('name')
         email = request.form.get('email')
         password = request.form.get('password')
+        crn = request.form.get('crn')
         user = User.query.filter_by(email=email).first()
         if user:
             flash('Email já existe. Por favor, use outro email.')
         else:
-            new_user = User(name=name, email=email, password=generate_password_hash(password, method='sha256'))
+            new_user = User(name=name, email=email, password=generate_password_hash(password, method='sha256'), crn=crn)
             db.session.add(new_user)
             db.session.commit()
             return redirect(url_for('login'))
@@ -353,17 +354,20 @@ local_storage = LocalJSONStorage()
 
 # ... (outras rotas existentes)
 
+UPLOAD_FOLDER = 'uploads'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf'}
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 @app.route('/salvar-checklist', methods=['POST'])
 @login_required
 def salvar_checklist_final():
     try:
         data = request.form
         json_data = json.loads(data.get('dados'))
-        
-        print(f"Dados recebidos: {json_data}")  # Log dos dados recebidos
-        
-        tipo_checklist = json_data.get('tipoChecklist')
-        print(f"Tipo de checklist: {tipo_checklist}")  # Log do tipo de checklist
         
         novo_checklist = Checklist(
             cliente_id=json_data['clienteId'],
@@ -372,29 +376,36 @@ def salvar_checklist_final():
             area_observada=json_data['areaObservada'],
             status='concluido',
             porcentagem_conformidade=float(json_data['porcentagemConformidade']),
-            tipo_checklist=json_data['tipoChecklist']  # Adicionada esta linha
+            tipo_checklist=json_data['tipoChecklist']
         )
         db.session.add(novo_checklist)
         db.session.flush()
         
-        print(f"Novo checklist criado: ID={novo_checklist.id}")  # Log do novo checklist
-        
-        for resposta in json_data['respostas']:
+        for index, resposta in enumerate(json_data['respostas']):
+            anexo_key = f'anexo_{index}'
+            anexo_path = None
+            
+            if anexo_key in request.files:
+                file = request.files[anexo_key]
+                if file and allowed_file(file.filename):
+                    filename = secure_filename(file.filename)
+                    anexo_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                    file.save(anexo_path)
+            
             nova_resposta = ChecklistResposta(
                 checklist_id=novo_checklist.id,
                 questao_id=resposta['id'],
                 descricao=resposta['descricao'],
                 conformidade=resposta['conformidade'],
-                observacoes=resposta.get('observacoes', '')
+                observacoes=resposta.get('observacoes', ''),
+                anexo=anexo_path
             )
             db.session.add(nova_resposta)
         
         db.session.commit()
-        print("Checklist salvo com sucesso")  # Log de sucesso
         return jsonify({"message": "Checklist salvo com sucesso!", "id": novo_checklist.id}), 200
     except Exception as e:
         db.session.rollback()
-        print(f"Erro ao salvar checklist: {str(e)}")  # Log de erro
         return jsonify({"error": str(e)}), 500
 
 # Remova ou comente a função salvar_checklist duplicada
@@ -580,10 +591,10 @@ def exportar_pdf(cliente_id, checklist_id):
     # Organize as respostas por seção
     respostas_por_secao = {}
     for resposta in respostas:
-        secao = getattr(resposta, 'secao', None) or "Sem Seção"
+        secao = resposta.secao or "Sem Seção"
         if secao not in respostas_por_secao:
-            respostas_por_secao[secao] = {"titulo": secao, "itens": []}
-        respostas_por_secao[secao]["itens"].append({
+            respostas_por_secao[secao] = []
+        respostas_por_secao[secao].append({
             "descricao": resposta.descricao,
             "conformidade": resposta.conformidade,
             "observacoes": resposta.observacoes,
@@ -594,22 +605,20 @@ def exportar_pdf(cliente_id, checklist_id):
         'cliente_id': cliente.id,
         'checklist_id': checklist.id,
         'nome_cliente': cliente.nome,
-        'tipo_checklist': checklist.tipo_checklist,
+        'tipo_checklist': checklist.tipo_checklist.upper(),
         'data_inspecao': checklist.data_inspecao,
         'area_observada': checklist.area_observada,
         'avaliador': checklist.avaliador,
+        'crn': current_user.crn or "0",  # Usando o CRN do usuário atual ou "0" se não existir
         'porcentagem_conformidade': checklist.porcentagem_conformidade,
-        'respostas_por_secao': list(respostas_por_secao.values())
+        'respostas_por_secao': respostas_por_secao
     }
     
-    # Renderiza o template HTML
     html_content = render_template('relatorio_pdf.html', relatorio=relatorio)
     
-    # Cria o PDF a partir do HTML renderizado
     base_url = request.url_root
     pdf = HTML(string=html_content, base_url=base_url).write_pdf()
     
-    # Cria uma resposta com o PDF
     response = make_response(pdf)
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = f'attachment; filename=relatorio_{cliente.nome}_{checklist.data_inspecao}.pdf'
@@ -619,6 +628,21 @@ def exportar_pdf(cliente_id, checklist_id):
 @app.route('/uploads/<filename>')
 def uploads(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+def gerar_pdf_checklist(checklist_id):
+    # ... (código existente)
+
+    for resposta in checklist.respostas:
+        # ... (código existente para adicionar a resposta)
+
+        if resposta.anexo:
+            try:
+                img = Image(resposta.anexo, width=200, height=150)
+                elements.append(img)
+            except Exception as e:
+                print(f"Erro ao adicionar imagem: {e}")
+
+    # ... (resto do código para gerar o PDF)
 
 if __name__ == '__main__':
     with app.app_context():

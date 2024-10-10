@@ -626,7 +626,6 @@
                 const descricao = questao.querySelector('p')?.textContent || '';
                 const conformidade = questao.querySelector('select')?.value || '';
                 const observacoes = questao.querySelector('textarea')?.value || '';
-                const anexo = questao.querySelector('input[type="file"]')?.files[0];
 
                 if (conformidade && conformidade !== 'NA') {
                     somaConformidade += parseInt(conformidade);
@@ -637,8 +636,7 @@
                     id: index + 1,
                     descricao: descricao,
                     conformidade: conformidade,
-                    observacoes: observacoes,
-                    anexo: anexo ? anexo.name : null
+                    observacoes: observacoes
                 });
             });
 
@@ -652,16 +650,16 @@
                 areaObservada: areaObservada,
                 respostas: respostas,
                 porcentagemConformidade: porcentagemConformidade,
-                tipoChecklist: 'higienico-sanitario' // Adicione esta linha
+                tipoChecklist: 'higienico-sanitario'
             };
 
             const formData = new FormData();
             formData.append('dados', JSON.stringify(dadosChecklist));
 
             questoes.forEach((questao, index) => {
-                const anexo = questao.querySelector('input[type="file"]')?.files[0];
-                if (anexo) {
-                    formData.append(`anexo_${index}`, anexo);
+                const inputAnexo = questao.querySelector('input[type="file"]');
+                if (inputAnexo && inputAnexo.files.length > 0) {
+                    formData.append(`anexo_${index}`, inputAnexo.files[0]);
                 }
             });
 
@@ -674,9 +672,7 @@
                 console.log('Sucesso:', data);
                 mostrarAvaliacaoDesempenho(porcentagemConformidade);
                 alert('Checklist salvo com sucesso!');
-                // Limpar o checklist em progresso do localStorage
                 localStorage.removeItem('checklistEmProgresso');
-                // Parar o autosave
                 clearInterval(window.autoSaveInterval);
             })
             .catch((error) => {
