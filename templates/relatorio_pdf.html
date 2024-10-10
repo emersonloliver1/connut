@@ -2,38 +2,115 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Relatório de Checklist</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatório de Checklist - {{ relatorio.nome_cliente }}</title>
     <style>
-        body { font-family: Arial, sans-serif; }
-        h1, h2 { color: #333; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .header img {
+            max-width: 200px;
+            height: auto;
+        }
+        h1 {
+            color: #0056b3;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        .info {
+            margin-bottom: 20px;
+        }
+        .info p {
+            margin: 5px 0;
+        }
+        .secao {
+            margin-bottom: 20px;
+        }
+        .secao h2 {
+            background-color: #f2f2f2;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .item {
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+        .conformidade {
+            font-weight: bold;
+            padding: 5px;
+            border-radius: 3px;
+            display: inline-block;
+        }
+        .conformidade-100 { background-color: #4CAF50; color: white; }
+        .conformidade-50 { background-color: #FFEB3B; color: black; }
+        .conformidade-25 { background-color: #FF9800; color: white; }
+        .conformidade-0 { background-color: #F44336; color: white; }
+        .conformidade-na { background-color: #9E9E9E; color: white; }
+        .observacoes {
+            font-style: italic;
+            margin-top: 5px;
+        }
+        .anexo img {
+            max-width: 300px;
+            height: auto;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
-    <h1>Relatório de Checklist</h1>
-    <h2>Cliente: {{ cliente.nome }}</h2>
-    <p>Tipo de Checklist: {{ checklist.tipo_checklist }}</p>
-    <p>Data da Inspeção: {{ checklist.data_inspecao.strftime('%d/%m/%Y') }}</p>
-    <p>Área Observada: {{ checklist.area_observada }}</p>
-    <p>Avaliador: {{ checklist.avaliador }}</p>
-    <p>Conformidade: {{ "%.2f"|format(checklist.porcentagem_conformidade) }}%</p>
-    
-    <h3>Respostas</h3>
-    <table>
-        <tr>
-            <th>Questão</th>
-            <th>Conformidade</th>
-            <th>Observações</th>
-        </tr>
-        {% for resposta in respostas %}
-        <tr>
-            <td>{{ resposta.descricao }}</td>
-            <td>{{ resposta.conformidade }}</td>
-            <td>{{ resposta.observacoes }}</td>
-        </tr>
+    <div class="header">
+        <img src="{{ url_for('static', filename='logo.jpg', _external=True) }}" alt="Connut Logo">
+        <h1>Relatório de Checklist - {{ relatorio.nome_cliente }}</h1>
+    </div>
+
+    <div class="info">
+        <p><strong>Tipo de Checklist:</strong> {{ relatorio.tipo_checklist }}</p>
+        <p><strong>Data da Inspeção:</strong> {{ relatorio.data_inspecao.strftime('%d/%m/%Y') }}</p>
+        <p><strong>Área Observada:</strong> {{ relatorio.area_observada }}</p>
+        <p><strong>Avaliador:</strong> {{ relatorio.avaliador }}</p>
+        <p><strong>Conformidade:</strong> {{ relatorio.porcentagem_conformidade }}%</p>
+    </div>
+
+    <h2>Respostas</h2>
+    {% for secao in relatorio.respostas_por_secao %}
+    <div class="secao">
+        <h2>{{ secao.titulo }}</h2>
+        {% for item in secao.itens %}
+        <div class="item">
+            <p><strong>{{ item.descricao }}</strong></p>
+            <div class="conformidade conformidade-{{ item.conformidade }}">
+                {% if item.conformidade == 100 %}
+                    Conforme
+                {% elif item.conformidade == 50 %}
+                    Parcialmente Conforme
+                {% elif item.conformidade == 25 %}
+                    Pouco Conforme
+                {% elif item.conformidade == 0 %}
+                    Não Conforme
+                {% else %}
+                    Não se Aplica
+                {% endif %}
+            </div>
+            {% if item.observacoes %}
+            <p class="observacoes">Observações: {{ item.observacoes }}</p>
+            {% endif %}
+            {% if item.anexo %}
+            <div class="anexo">
+                <img src="{{ url_for('uploads', filename=item.anexo, _external=True) }}" alt="Anexo">
+            </div>
+            {% endif %}
+        </div>
         {% endfor %}
-    </table>
+    </div>
+    {% endfor %}
 </body>
 </html>

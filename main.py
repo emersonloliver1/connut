@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file, make_response, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -13,12 +13,7 @@ import io
 import json
 from sqlalchemy import Float
 from models import db, User, Cliente, Documento, Checklist, ChecklistResposta
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Image
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from io import BytesIO
+from weasyprint import HTML, CSS
 
 load_dotenv()  # Carrega as variáveis de ambiente do arquivo .env
 
@@ -34,7 +29,9 @@ ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'txt', 'jpg', 'jpeg', 'png', 'gif'}
 app.config['UPLOAD_FOLDER'] = 'uploads'  # Adicione esta linha
 
 # Inicialize o db com o app
-db = SQLAlchemy(app)
+db.init_app(app)
+
+migrate = Migrate(app, db)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -45,8 +42,6 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 document_storage = LocalJSONStorage()
-
-migrate = Migrate(app, db)
 
 init_session_timeout(app)
 
@@ -377,7 +372,7 @@ def salvar_checklist_final():
             area_observada=json_data['areaObservada'],
             status='concluido',
             porcentagem_conformidade=float(json_data['porcentagemConformidade']),
-            tipo_checklist=tipo_checklist
+            tipo_checklist=json_data['tipoChecklist']  # Adicionada esta linha
         )
         db.session.add(novo_checklist)
         db.session.flush()
@@ -387,7 +382,7 @@ def salvar_checklist_final():
         for resposta in json_data['respostas']:
             nova_resposta = ChecklistResposta(
                 checklist_id=novo_checklist.id,
-                questao_id=resposta['questaoId'],
+                questao_id=resposta['id'],
                 descricao=resposta['descricao'],
                 conformidade=resposta['conformidade'],
                 observacoes=resposta.get('observacoes', '')
@@ -582,67 +577,48 @@ def exportar_pdf(cliente_id, checklist_id):
     checklist = Checklist.query.get_or_404(checklist_id)
     respostas = ChecklistResposta.query.filter_by(checklist_id=checklist.id).all()
     
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
-    elements = []
-    
-    styles = getSampleStyleSheet()
-    title_style = styles['Heading1']
-    subtitle_style = styles['Heading2']
-    normal_style = styles['Normal']
-    
-    # Adicionar logo
-    logo_path = 'static/logo.jpg'
-    img = Image(logo_path, width=2*inch, height=1*inch)
-    elements.append(img)
-    
-    elements.append(Paragraph(f"Relatório de Checklist - {cliente.nome}", title_style))
-    elements.append(Paragraph(f"Tipo de Checklist: {checklist.tipo_checklist}", normal_style))
-    elements.append(Paragraph(f"Data da Inspeção: {checklist.data_inspecao.strftime('%d/%m/%Y')}", normal_style))
-    elements.append(Paragraph(f"Área Observada: {checklist.area_observada}", normal_style))
-    elements.append(Paragraph(f"Avaliador: {checklist.avaliador}", normal_style))
-    elements.append(Paragraph(f"Conformidade: {checklist.porcentagem_conformidade:.2f}%", normal_style))
-    
-    elements.append(Paragraph("Respostas", subtitle_style))
-    
-    data = [['Questão', 'Conformidade', 'Observações']]
+    # Organize as respostas por seção
+    respostas_por_secao = {}
     for resposta in respostas:
-        data.append([
-            Paragraph(resposta.descricao, normal_style),
-            resposta.conformidade,
-            Paragraph(resposta.observacoes or '', normal_style)
-        ])
+        secao = getattr(resposta, 'secao', None) or "Sem Seção"
+        if secao not in respostas_por_secao:
+            respostas_por_secao[secao] = {"titulo": secao, "itens": []}
+        respostas_por_secao[secao]["itens"].append({
+            "descricao": resposta.descricao,
+            "conformidade": resposta.conformidade,
+            "observacoes": resposta.observacoes,
+            "anexo": resposta.anexo
+        })
     
-    table = Table(data, colWidths=[250, 70, 150])
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 12),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-        ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 1), (-1, -1), 10),
-        ('TOPPADDING', (0, 1), (-1, -1), 6),
-        ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black)
-    ]))
+    relatorio = {
+        'cliente_id': cliente.id,
+        'checklist_id': checklist.id,
+        'nome_cliente': cliente.nome,
+        'tipo_checklist': checklist.tipo_checklist,
+        'data_inspecao': checklist.data_inspecao,
+        'area_observada': checklist.area_observada,
+        'avaliador': checklist.avaliador,
+        'porcentagem_conformidade': checklist.porcentagem_conformidade,
+        'respostas_por_secao': list(respostas_por_secao.values())
+    }
     
-    elements.append(table)
+    # Renderiza o template HTML
+    html_content = render_template('relatorio_pdf.html', relatorio=relatorio)
     
-    doc.build(elements)
+    # Cria o PDF a partir do HTML renderizado
+    base_url = request.url_root
+    pdf = HTML(string=html_content, base_url=base_url).write_pdf()
     
-    buffer.seek(0)
+    # Cria uma resposta com o PDF
+    response = make_response(pdf)
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'attachment; filename=relatorio_{cliente.nome}_{checklist.data_inspecao}.pdf'
     
-    return send_file(
-        buffer,
-        as_attachment=True,
-        download_name=f'relatorio_{cliente.nome}_{checklist.data_inspecao}.pdf',
-        mimetype='application/pdf'
-    )
+    return response
+
+@app.route('/uploads/<filename>')
+def uploads(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 if __name__ == '__main__':
     with app.app_context():

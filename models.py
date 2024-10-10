@@ -33,23 +33,24 @@ class Documento(db.Model):
 class Checklist(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     cliente_id = db.Column(db.Integer, db.ForeignKey('cliente.id'), nullable=False)
-    tipo_checklist = db.Column(db.String(50), nullable=False)
     avaliador = db.Column(db.String(100), nullable=False)
     data_inspecao = db.Column(db.Date, nullable=False)
     area_observada = db.Column(db.String(200), nullable=False)
-    status = db.Column(db.String(20), default='em_progresso')
-    porcentagem_conformidade = db.Column(db.Float, nullable=True)
-    data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
+    status = db.Column(db.String(20), nullable=False)
+    porcentagem_conformidade = db.Column(db.Float, nullable=False)
+    tipo_checklist = db.Column(db.String(50), nullable=False)  # Adicione esta linha se ainda não existir
 
     cliente = db.relationship('Cliente', backref=db.backref('checklists', lazy=True))
 
 class ChecklistResposta(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     checklist_id = db.Column(db.Integer, db.ForeignKey('checklist.id'), nullable=False)
-    questao_id = db.Column(db.Integer, nullable=False)
+    questao_id = db.Column(db.String(50), nullable=False)
     descricao = db.Column(db.Text, nullable=False)
-    conformidade = db.Column(db.String(10), nullable=False)
+    conformidade = db.Column(db.Integer, nullable=False)
     observacoes = db.Column(db.Text)
-    anexo = db.Column(db.String(200))
+    anexo = db.Column(db.String(255))
+    secao = db.Column(db.String(255))  # Adicionando o campo secao
 
-    checklist = db.relationship('Checklist', backref=db.backref('respostas', lazy=True))
+    def __repr__(self):
+        return f'<ChecklistResposta {self.id}>'
