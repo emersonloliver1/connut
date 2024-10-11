@@ -93,7 +93,8 @@ def index():
         {"icon": "📊", "text": "Avaliações", "url": "#"},
         {"icon": "💬", "text": "Atendimentos", "url": "#"},
         {"icon": "📄", "text": "Laudos", "url": "#"},
-        {"icon": "❓", "text": "Ajuda", "url": "#"}
+        {"icon": "❓", "text": "Ajuda", "url": "#"},
+        {"icon": "📦", "text": "Estoque", "url": url_for('estoque')}
     ]
     return render_template('index.html', menu_items=menu_items, current_user=current_user)
 
@@ -643,6 +644,12 @@ def gerar_pdf_checklist(checklist_id):
                 print(f"Erro ao adicionar imagem: {e}")
 
     # ... (resto do código para gerar o PDF)
+
+@app.route('/estoque')
+@login_required
+@check_session_timeout
+def estoque():
+    return render_template('estoque.html', current_user=current_user)
 
 if __name__ == '__main__':
     with app.app_context():
