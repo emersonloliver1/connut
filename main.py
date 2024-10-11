@@ -15,7 +15,7 @@ from sqlalchemy import Float
 from models import db, User, Cliente, Documento, Checklist, ChecklistResposta
 from weasyprint import HTML, CSS
 from flask_cors import CORS
-from flask_wtf import CSRFProtect
+from flask_wtf.csrf import CSRFProtect
 import traceback
 
 def remover_duplicatas(respostas):
@@ -69,8 +69,8 @@ def login():
         user = User.query.filter_by(email=email).first()
         if user and check_password_hash(user.password, password):
             login_user(user)
-            session['last_activity'] = datetime.utcnow().isoformat()
-            return redirect(url_for('index'))
+            next_page = request.args.get('next')
+            return redirect(next_page or url_for('index'))
         else:
             flash('Login inválido. Por favor, tente novamente.')
     return render_template('login.html')

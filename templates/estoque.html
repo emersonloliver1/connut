@@ -12,10 +12,136 @@
         <h1 class="text-2xl font-bold">Estoque</h1>
     </header>
     <div class="container mx-auto p-4">
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Gerenciamento de Estoque</h2>
-            <!-- Conteúdo do estoque -->
+        <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">Gerenciamento de Estoque</h1>
+
+        <div class="mb-6 flex justify-between items-center">
+            <input type="text" id="pesquisa" placeholder="Pesquisar produtos..." class="p-2 border border-gray-300 rounded w-1/3">
+            <button onclick="abrirModalCadastro()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">
+                Cadastrar Novo Produto
+            </button>
+        </div>
+
+        <table class="w-full bg-white shadow-md rounded">
+            <thead>
+                <tr class="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
+                    <th class="py-3 px-6 text-left">Cód</th>
+                    <th class="py-3 px-6 text-left">Descrição</th>
+                    <th class="py-3 px-6 text-left">Unid. de Medida</th>
+                    <th class="py-3 px-6 text-left">Estoque</th>
+                    <th class="py-3 px-6 text-center">Ações</th>
+                </tr>
+            </thead>
+            <tbody id="tabelaProdutos">
+                <!-- Os produtos serão inseridos aqui dinamicamente -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Modal de Cadastro -->
+    <div id="modalCadastro" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <h3 class="text-lg font-bold mb-4">Cadastrar Novo Produto</h3>
+            <form id="formCadastroProduto">
+                <input type="text" id="codigo" placeholder="Código" class="w-full p-2 mb-3 border rounded">
+                <input type="text" id="descricao" placeholder="Descrição" class="w-full p-2 mb-3 border rounded">
+                <input type="text" id="unidadeMedida" placeholder="Unidade de Medida" class="w-full p-2 mb-3 border rounded">
+                <input type="number" id="quantidadeEstoque" placeholder="Quantidade em Estoque" class="w-full p-2 mb-3 border rounded">
+                <div id="imagemProduto" class="mb-3 h-32 bg-gray-100 flex items-center justify-center">
+                    <span>Imagem do produto</span>
+                </div>
+                <button type="submit" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
+                    Cadastrar
+                </button>
+            </form>
+            <button onclick="fecharModalCadastro()" class="mt-3 w-full bg-gray-300 hover:bg-gray-400 text-black font-bold py-2 px-4 rounded">
+                Cancelar
+            </button>
         </div>
     </div>
+
+    <script>
+    let produtos = [];
+
+    function abrirModalCadastro() {
+        document.getElementById('modalCadastro').classList.remove('hidden');
+        buscarImagemProduto();
+    }
+
+    function fecharModalCadastro() {
+        document.getElementById('modalCadastro').classList.add('hidden');
+    }
+
+    function buscarImagemProduto() {
+        const descricao = document.getElementById('descricao').value;
+        if (descricao) {
+            fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(descricao)}&client_id=SEU_CLIENT_ID_AQUI`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.results.length > 0) {
+                        const imagemUrl = data.results[0].urls.small;
+                        document.getElementById('imagemProduto').innerHTML = `<img src="${imagemUrl}" alt="${descricao}" class="max-h-full">`;
+                    }
+                })
+                .catch(error => console.error('Erro ao buscar imagem:', error));
+        }
+    }
+
+    document.getElementById('formCadastroProduto').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const novoProduto = {
+            codigo: document.getElementById('codigo').value,
+            descricao: document.getElementById('descricao').value,
+            unidadeMedida: document.getElementById('unidadeMedida').value,
+            quantidadeEstoque: document.getElementById('quantidadeEstoque').value,
+            imagem: document.getElementById('imagemProduto').querySelector('img')?.src
+        };
+        produtos.push(novoProduto);
+        atualizarTabelaProdutos();
+        fecharModalCadastro();
+    });
+
+    function atualizarTabelaProdutos() {
+        const tabela = document.getElementById('tabelaProdutos');
+        tabela.innerHTML = '';
+        produtos.forEach(produto => {
+            tabela.innerHTML += `
+                <tr class="border-b border-gray-200 hover:bg-gray-100">
+                    <td class="py-3 px-6 text-left">${produto.codigo}</td>
+                    <td class="py-3 px-6 text-left">${produto.descricao}</td>
+                    <td class="py-3 px-6 text-left">${produto.unidadeMedida}</td>
+                    <td class="py-3 px-6 text-left">${produto.quantidadeEstoque}</td>
+                    <td class="py-3 px-6 text-center">
+                        <button onclick="editarProduto('${produto.codigo}')" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded mr-2">Editar</button>
+                        <button onclick="excluirProduto('${produto.codigo}')" class="bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-2 rounded">Excluir</button>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    function editarProduto(codigo) {
+        // Implementar lógica de edição
+        console.log('Editar produto:', codigo);
+    }
+
+    function excluirProduto(codigo) {
+        if (confirm('Tem certeza que deseja excluir este produto?')) {
+            produtos = produtos.filter(p => p.codigo !== codigo);
+            atualizarTabelaProdutos();
+        }
+    }
+
+    document.getElementById('pesquisa').addEventListener('input', function(e) {
+        const termo = e.target.value.toLowerCase();
+        const produtosFiltrados = produtos.filter(p => 
+            p.codigo.toLowerCase().includes(termo) || 
+            p.descricao.toLowerCase().includes(termo)
+        );
+        atualizarTabelaProdutos(produtosFiltrados);
+    });
+
+    // Inicializar a tabela
+    atualizarTabelaProdutos();
+    </script>
 </body>
 </html>
