@@ -75,20 +75,27 @@
 <script>
 function excluirRelatorio(id) {
     if (confirm('Tem certeza que deseja excluir este relatório?')) {
-        fetch(`/excluir_relatorio/${id}`, { method: 'DELETE' })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('Relatório excluído com sucesso!');
-                    location.reload();
-                } else {
-                    alert('Erro ao excluir relatório: ' + data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Erro:', error);
-                alert('Ocorreu um erro ao excluir o relatório.');
-            });
+        fetch(`/excluir_relatorio/${id}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Relatório excluído com sucesso!');
+                location.reload();
+            } else {
+                console.error('Erro ao excluir relatório:', data.message);
+                alert('Erro ao excluir relatório: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            alert('Ocorreu um erro ao excluir o relatório. Verifique o console para mais detalhes.');
+        });
     }
 }
 </script>

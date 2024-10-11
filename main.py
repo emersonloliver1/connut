@@ -15,6 +15,8 @@ from sqlalchemy import Float
 from models import db, User, Cliente, Documento, Checklist, ChecklistResposta
 from weasyprint import HTML, CSS
 from flask_cors import CORS
+from flask_wtf import CSRFProtect
+import traceback
 
 def remover_duplicatas(respostas):
     vistas = set()
@@ -56,6 +58,8 @@ def load_user(user_id):
 document_storage = LocalJSONStorage()
 
 init_session_timeout(app)
+
+csrf = CSRFProtect(app)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -677,17 +681,28 @@ def gerar_pdf_checklist(checklist_id):
 def estoque():
     return render_template('estoque.html', current_user=current_user)
 
-@app.route('/excluir_relatorio/<int:id>', methods=['DELETE'])
+@app.route('/excluir_relatorio/<int:id>', methods=['POST'])
 @login_required
 def excluir_relatorio(id):
     try:
         checklist = Checklist.query.get_or_404(id)
+        
+        # Remova esta verificação se não for necessária
+        # if checklist.usuario_id != current_user.id:
+        #     return jsonify({'success': False, 'message': 'Você não tem permissão para excluir este relatório'}), 403
+        
+        # Primeiro, exclua todas as respostas associadas a este checklist
+        ChecklistResposta.query.filter_by(checklist_id=id).delete()
+        
+        # Agora, exclua o checklist
         db.session.delete(checklist)
         db.session.commit()
         return jsonify({'success': True, 'message': 'Relatório excluído com sucesso'})
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'message': str(e)}), 500
+        error_message = f"Erro ao excluir relatório: {str(e)}\n{traceback.format_exc()}"
+        app.logger.error(error_message)
+        return jsonify({'success': False, 'message': error_message}), 500
 
 if __name__ == '__main__':
     with app.app_context():
