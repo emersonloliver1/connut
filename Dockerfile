@@ -1,24 +1,26 @@
 # Use uma imagem base oficial do Python
-FROM python:3.9-slim
+FROM python:3.9-slim-buster
 
 # Define o diretório de trabalho no container
 WORKDIR /app
 
-# Instala as dependências do sistema necessárias para o Cairo e WeasyPrint
+# Instala as dependências do sistema necessárias
 RUN apt-get update && apt-get install -y \
-    libcairo2 \
-    libpango-1.0-0 \
-    libpangocairo-1.0-0 \
-    libgdk-pixbuf2.0-0 \
+    build-essential \
+    pkg-config \
+    python3-dev \
+    libcairo2-dev \
+    libpango1.0-dev \
+    libgdk-pixbuf2.0-dev \
     libffi-dev \
     shared-mime-info \
     libpq-dev \
-    build-essential
+    && rm -rf /var/lib/apt/lists/*
 
 # Copia os arquivos de requisitos primeiro para aproveitar o cache do Docker
 COPY requirements.txt .
 
-# Instala as dependências
+# Instala as dependências Python
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copia o resto do código da aplicação
@@ -34,12 +36,7 @@ EXPOSE 8080
 ENV FLASK_APP=main.py
 ENV FLASK_RUN_HOST=0.0.0.0
 ENV PORT=8080
-
-# Remove os comandos de inicialização do banco de dados
-# Estes comandos devem ser executados em tempo de execução, não durante a construção da imagem
-# RUN flask db init
-# RUN flask db migrate
-# RUN flask db upgrade
+ENV GOOGLE_CLOUD_RUN=True
 
 # Comando para rodar a aplicação
 CMD ["python", "main.py"]
