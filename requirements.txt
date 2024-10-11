@@ -13,3 +13,4 @@ Flask-Migrate==3.1.0
 python-dotenv==0.19.2
 weasyprint==52.5
 pycairo==1.27.0
+flask-cors==3.0.10

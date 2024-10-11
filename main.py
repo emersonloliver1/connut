@@ -14,10 +14,21 @@ import json
 from sqlalchemy import Float
 from models import db, User, Cliente, Documento, Checklist, ChecklistResposta
 from weasyprint import HTML, CSS
+from flask_cors import CORS
+
+def remover_duplicatas(respostas):
+    vistas = set()
+    unicas = []
+    for resposta in respostas:
+        if resposta.descricao not in vistas:
+            unicas.append(resposta)
+            vistas.add(resposta.descricao)
+    return unicas
 
 load_dotenv()  # Carrega as variáveis de ambiente do arquivo .env
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
+CORS(app)  # Habilita CORS para todas as rotas
 
 # Configuração do banco de dados
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///instance/site.db'
@@ -26,7 +37,8 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'sua_chave_secreta_aqui')
 
 # Configuração para upload de arquivos
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'txt', 'jpg', 'jpeg', 'png', 'gif'}
-app.config['UPLOAD_FOLDER'] = 'uploads'
+UPLOAD_FOLDER = 'uploads'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # Inicialize o db com o app
 db.init_app(app)
@@ -355,17 +367,10 @@ local_storage = LocalJSONStorage()
 
 # ... (outras rotas existentes)
 
-UPLOAD_FOLDER = 'uploads'
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf'}
-
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
 @app.route('/salvar-checklist', methods=['POST'])
 @login_required
-def salvar_checklist_final():
+def salvar_checklist():
+    app.logger.info("Rota /salvar-checklist acessada")
     try:
         data = request.form
         json_data = json.loads(data.get('dados'))
@@ -377,7 +382,7 @@ def salvar_checklist_final():
             area_observada=json_data['areaObservada'],
             status='concluido',
             porcentagem_conformidade=float(json_data['porcentagemConformidade']),
-            tipo_checklist=json_data['tipoChecklist']
+            tipo_checklist='higienico_sanitario'  # Adicionado o tipo de checklist
         )
         db.session.add(novo_checklist)
         db.session.flush()
@@ -404,8 +409,10 @@ def salvar_checklist_final():
             db.session.add(nova_resposta)
         
         db.session.commit()
+        app.logger.info(f"Checklist salvo com sucesso: ID={novo_checklist.id}")
         return jsonify({"message": "Checklist salvo com sucesso!", "id": novo_checklist.id}), 200
     except Exception as e:
+        app.logger.error(f"Erro ao salvar checklist: {str(e)}")
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
@@ -563,7 +570,8 @@ def gerar_relatorio(cliente_id, checklist_id):
     
     respostas = ChecklistResposta.query.filter_by(checklist_id=checklist.id).all()
     
-    documentos = Documento.query.filter_by(cliente_id=cliente.id).all()
+    # Remover duplicatas
+    respostas_unicas = remover_duplicatas(respostas)
     
     relatorio = {
         'cliente_id': cliente.id,
@@ -574,9 +582,7 @@ def gerar_relatorio(cliente_id, checklist_id):
         'area_observada': checklist.area_observada,
         'avaliador': checklist.avaliador,
         'porcentagem_conformidade': checklist.porcentagem_conformidade,
-        'respostas': respostas,
-        'total_documentos': len(documentos),
-        'documentos': documentos
+        'respostas_unicas': respostas_unicas
     }
     
     return render_template('relatorio_detalhado.html', relatorio=relatorio)
@@ -589,17 +595,31 @@ def exportar_pdf(cliente_id, checklist_id):
     checklist = Checklist.query.get_or_404(checklist_id)
     respostas = ChecklistResposta.query.filter_by(checklist_id=checklist.id).all()
     
+    # Remover duplicatas
+    respostas_unicas = []
+    descricoes_vistas = set()
+    for resposta in respostas:
+        if resposta.descricao not in descricoes_vistas:
+            respostas_unicas.append(resposta)
+            descricoes_vistas.add(resposta.descricao)
+    
     # Organize as respostas por seção
     respostas_por_secao = {}
-    for resposta in respostas:
+    for resposta in respostas_unicas:
         secao = resposta.secao or "Sem Seção"
         if secao not in respostas_por_secao:
             respostas_por_secao[secao] = []
+        
+        # Use uma URL para o anexo em vez de um caminho de arquivo
+        anexo_url = None
+        if resposta.anexo:
+            anexo_url = url_for('uploads', filename=os.path.basename(resposta.anexo), _external=True)
+        
         respostas_por_secao[secao].append({
             "descricao": resposta.descricao,
             "conformidade": resposta.conformidade,
             "observacoes": resposta.observacoes,
-            "anexo": resposta.anexo
+            "anexo": anexo_url
         })
     
     relatorio = {
@@ -610,19 +630,24 @@ def exportar_pdf(cliente_id, checklist_id):
         'data_inspecao': checklist.data_inspecao,
         'area_observada': checklist.area_observada,
         'avaliador': checklist.avaliador,
-        'crn': current_user.crn or "0",  # Usando o CRN do usuário atual ou "0" se não existir
+        'crn': current_user.crn or "0",
         'porcentagem_conformidade': checklist.porcentagem_conformidade,
         'respostas_por_secao': respostas_por_secao
     }
     
     html_content = render_template('relatorio_pdf.html', relatorio=relatorio)
     
-    base_url = request.url_root
-    pdf = HTML(string=html_content, base_url=base_url).write_pdf()
+    css = CSS(string='''
+        @page { size: A4; margin: 1cm }
+        body { font-family: Arial, sans-serif; }
+        img { max-width: 100%; height: auto; }
+    ''')
+    
+    pdf = HTML(string=html_content, base_url=request.url_root).write_pdf(stylesheets=[css])
     
     response = make_response(pdf)
     response.headers['Content-Type'] = 'application/pdf'
-    response.headers['Content-Disposition'] = f'attachment; filename=relatorio_{cliente.nome}_{checklist.data_inspecao}.pdf'
+    response.headers['Content-Disposition'] = 'inline; filename=relatorio.pdf'
     
     return response
 

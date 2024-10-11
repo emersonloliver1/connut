@@ -93,7 +93,7 @@
             {% endif %}
             {% if item.anexo %}
             <div class="anexo">
-                <img src="{{ url_for('uploads', filename=item.anexo, _external=True) }}" alt="Anexo">
+                <img src="{{ item.anexo }}" alt="Anexo">
             </div>
             {% endif %}
         </div>
