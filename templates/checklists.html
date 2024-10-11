@@ -51,7 +51,7 @@
         <div id="higienico-sanitario-checklist" class="hidden bg-white rounded-lg shadow-md p-6 mt-4">
             <h2 class="text-2xl font-bold mb-4 text-center text-gray-800">CHECKLIST HIGIÊNICO SANITÁRIO</h2>
             <p class="text-center mb-4">Checklist para acompanhamento das condições higiênicas sanitárias dos refeitórios e cozinhas</p>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                 <div>
                     <label class="block text-gray-700 text-sm font-bold mb-2" for="avaliador">Nome do avaliador:</label>
                     <input type="text" id="avaliador" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
@@ -63,6 +63,10 @@
                 <div>
                     <label class="block text-gray-700 text-sm font-bold mb-2" for="area-observada">Área observada:</label>
                     <input type="text" id="area-observada" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="crn-higienico">CRN do responsável técnico:</label>
+                    <input type="text" id="crn-higienico" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                 </div>
             </div>
             
@@ -91,7 +95,7 @@
         <div id="rdc216-checklist" class="hidden bg-white rounded-lg shadow-md p-6 mt-4">
             <h2 class="text-2xl font-bold mb-4 text-center text-gray-800">CHECKLIST RDC 216</h2>
             <p class="text-center mb-4">Checklist para verificação das Boas Práticas para Serviços de Alimentação conforme RDC 216</p>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                 <div>
                     <label class="block text-gray-700 text-sm font-bold mb-2" for="avaliador-rdc216">Nome do avaliador:</label>
                     <input type="text" id="avaliador-rdc216" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
@@ -103,6 +107,10 @@
                 <div>
                     <label class="block text-gray-700 text-sm font-bold mb-2" for="area-observada-rdc216">Área observada:</label>
                     <input type="text" id="area-observada-rdc216" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="crn-rdc216">CRN do responsável técnico:</label>
+                    <input type="text" id="crn-rdc216" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                 </div>
             </div>
             
@@ -390,6 +398,7 @@
             const avaliador = document.getElementById('avaliador')?.value;
             const dataInspecao = document.getElementById('data-inspecao')?.value;
             const areaObservada = document.getElementById('area-observada')?.value;
+            const crn = document.getElementById('crn-higienico')?.value;  // Novo campo CRN
 
             if (!clienteId || !avaliador || !dataInspecao || !areaObservada) {
                 alert('Por favor, preencha todos os campos obrigatórios.');
@@ -427,6 +436,7 @@
                 avaliador: avaliador,
                 dataInspecao: dataInspecao,
                 areaObservada: areaObservada,
+                crn: crn,  // Incluindo o CRN nos dados do checklist
                 respostas: respostas,
                 porcentagemConformidade: porcentagemConformidade,
                 tipoChecklist: 'higienico-sanitario'
@@ -534,6 +544,7 @@
             const avaliador = document.getElementById('avaliador-rdc216')?.value;
             const dataInspecao = document.getElementById('data-inspecao-rdc216')?.value;
             const areaObservada = document.getElementById('area-observada-rdc216')?.value;
+            const crn = document.getElementById('crn-rdc216')?.value;  // Novo campo CRN
 
             if (!clienteId || !avaliador || !dataInspecao || !areaObservada) {
                 alert('Por favor, preencha todos os campos obrigatórios.');
@@ -573,6 +584,7 @@
                 avaliador: avaliador,
                 dataInspecao: dataInspecao,
                 areaObservada: areaObservada,
+                crn: crn,  // Incluindo o CRN nos dados do checklist
                 respostas: respostas,
                 porcentagemConformidade: porcentagemConformidade
             };
