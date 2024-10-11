@@ -540,26 +540,27 @@ def check_db():
             'message': f'Erro ao conectar com o banco de dados: {str(e)}'
         }), 500
 
-@app.route('/relatorios', methods=['GET', 'POST'])
+@app.route('/relatorios')
 @login_required
 @check_session_timeout
 def relatorios():
+    cliente_id = request.args.get('cliente', type=int)
+    data_inicio = request.args.get('data_inicio')
+    data_fim = request.args.get('data_fim')
+
+    query = Checklist.query
+
+    if cliente_id:
+        query = query.filter(Checklist.cliente_id == cliente_id)
+    if data_inicio:
+        query = query.filter(Checklist.data_inspecao >= datetime.strptime(data_inicio, '%Y-%m-%d').date())
+    if data_fim:
+        query = query.filter(Checklist.data_inspecao <= datetime.strptime(data_fim, '%Y-%m-%d').date())
+
+    relatorios = query.order_by(Checklist.data_inspecao.desc()).all()
     clientes = Cliente.query.all()
-    
-    if request.method == 'POST':
-        cliente_id = request.form.get('cliente')
-        cliente = Cliente.query.get(cliente_id)
-        
-        if cliente:
-            checklists = Checklist.query.filter_by(cliente_id=cliente.id).all()
-            
-            return render_template('selecao_checklist.html', 
-                                   cliente=cliente, 
-                                   checklists=checklists)
-        else:
-            flash('Cliente não encontrado.', 'error')
-    
-    return render_template('relatorios.html', clientes=clientes)
+
+    return render_template('relatorios.html', relatorios=relatorios, clientes=clientes)
 
 @app.route('/gerar_relatorio/<int:cliente_id>/<int:checklist_id>')
 @login_required
@@ -675,6 +676,18 @@ def gerar_pdf_checklist(checklist_id):
 @check_session_timeout
 def estoque():
     return render_template('estoque.html', current_user=current_user)
+
+@app.route('/excluir_relatorio/<int:id>', methods=['DELETE'])
+@login_required
+def excluir_relatorio(id):
+    try:
+        checklist = Checklist.query.get_or_404(id)
+        db.session.delete(checklist)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Relatório excluído com sucesso'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 if __name__ == '__main__':
     with app.app_context():
