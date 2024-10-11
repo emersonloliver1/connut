@@ -40,6 +40,7 @@ class Checklist(db.Model):
     status = db.Column(db.String(20), nullable=False)
     porcentagem_conformidade = db.Column(db.Float, nullable=False)
     tipo_checklist = db.Column(db.String(50), nullable=False)
+    crn = db.Column(db.String(20))  # Adicionando o campo CRN
 
     cliente = db.relationship('Cliente', backref=db.backref('checklists', lazy=True))
 

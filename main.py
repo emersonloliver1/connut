@@ -6,7 +6,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
 from storage.storage import LocalJSONStorage
-from flask_migrate import Migrate
+from flask_migrate import Migrate, upgrade
 from security.timestamp import init_session_timeout, check_session_timeout
 from datetime import datetime
 import io
@@ -45,6 +45,10 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 db.init_app(app)
 
 migrate = Migrate(app, db)
+
+def apply_migrations():
+    with app.app_context():
+        upgrade()
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -383,7 +387,8 @@ def salvar_checklist():
             area_observada=json_data['areaObservada'],
             status='concluido',
             porcentagem_conformidade=float(json_data['porcentagemConformidade']),
-            tipo_checklist='higienico_sanitario'  # Adicionado o tipo de checklist
+            tipo_checklist='higienico_sanitario',
+            crn=json_data.get('crn', '')  # Adicionando o CRN
         )
         db.session.add(novo_checklist)
         db.session.flush()
@@ -476,8 +481,6 @@ def salvar_checklist_rdc216():
         data = request.form
         json_data = json.loads(data.get('dados'))
         
-        app.logger.info(f"Dados recebidos para salvar checklist RDC 216: {json_data}")
-        
         novo_checklist = Checklist(
             cliente_id=json_data['clienteId'],
             avaliador=json_data['avaliador'],
@@ -485,13 +488,11 @@ def salvar_checklist_rdc216():
             area_observada=json_data['areaObservada'],
             status='concluido',
             porcentagem_conformidade=float(json_data['porcentagemConformidade']),
-            tipo_checklist='rdc216'
+            tipo_checklist='rdc216',
+            crn=json_data.get('crn', '')  # Adicionando o CRN
         )
         db.session.add(novo_checklist)
         db.session.flush()
-        
-        # Adicione um log aqui para verificar se o checklist está sendo salvo corretamente
-        app.logger.info(f"Novo checklist RDC 216 salvo: ID={novo_checklist.id}, Tipo={novo_checklist.tipo_checklist}")
         
         for resposta in json_data['respostas']:
             nova_resposta = ChecklistResposta(
@@ -597,17 +598,9 @@ def exportar_pdf(cliente_id, checklist_id):
     checklist = Checklist.query.get_or_404(checklist_id)
     respostas = ChecklistResposta.query.filter_by(checklist_id=checklist.id).all()
     
-    # Remover duplicatas
-    respostas_unicas = []
-    descricoes_vistas = set()
-    for resposta in respostas:
-        if resposta.descricao not in descricoes_vistas:
-            respostas_unicas.append(resposta)
-            descricoes_vistas.add(resposta.descricao)
-    
     # Organize as respostas por seção
     respostas_por_secao = {}
-    for resposta in respostas_unicas:
+    for resposta in respostas:
         secao = resposta.secao or "Sem Seção"
         if secao not in respostas_por_secao:
             respostas_por_secao[secao] = []
@@ -632,7 +625,7 @@ def exportar_pdf(cliente_id, checklist_id):
         'data_inspecao': checklist.data_inspecao,
         'area_observada': checklist.area_observada,
         'avaliador': checklist.avaliador,
-        'crn': current_user.crn or "0",
+        'crn': checklist.crn or "Não informado",
         'porcentagem_conformidade': checklist.porcentagem_conformidade,
         'respostas_por_secao': respostas_por_secao
     }
