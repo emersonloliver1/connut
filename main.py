@@ -598,24 +598,36 @@ def exportar_pdf(cliente_id, checklist_id):
     checklist = Checklist.query.get_or_404(checklist_id)
     respostas = ChecklistResposta.query.filter_by(checklist_id=checklist.id).all()
     
-    # Organize as respostas por seção
+    # Organize as respostas por seção e remova duplicatas
     respostas_por_secao = {}
+    questoes_vistas = set()
     for resposta in respostas:
+        # Pule as respostas que não têm conformidade (títulos das seções)
+        if resposta.conformidade is None:
+            continue
+        
         secao = resposta.secao or "Sem Seção"
         if secao not in respostas_por_secao:
             respostas_por_secao[secao] = []
         
-        # Use uma URL para o anexo em vez de um caminho de arquivo
-        anexo_url = None
-        if resposta.anexo:
-            anexo_url = url_for('uploads', filename=os.path.basename(resposta.anexo), _external=True)
-        
-        respostas_por_secao[secao].append({
-            "descricao": resposta.descricao,
-            "conformidade": resposta.conformidade,
-            "observacoes": resposta.observacoes,
-            "anexo": anexo_url
-        })
+        # Verifica se a questão já foi vista
+        if resposta.questao_id not in questoes_vistas:
+            questoes_vistas.add(resposta.questao_id)
+            
+            # Use uma URL para o anexo em vez de um caminho de arquivo
+            anexo_url = None
+            if resposta.anexo:
+                anexo_url = url_for('uploads', filename=os.path.basename(resposta.anexo), _external=True)
+            
+            # Trata questões não preenchidas como "Não se aplica"
+            conformidade = resposta.conformidade if resposta.conformidade is not None else 'NA'
+            
+            respostas_por_secao[secao].append({
+                "descricao": resposta.descricao,
+                "conformidade": conformidade,
+                "observacoes": resposta.observacoes,
+                "anexo": anexo_url
+            })
     
     relatorio = {
         'cliente_id': cliente.id,

@@ -90,7 +90,7 @@
                          {% elif item.conformidade == 50 %}parcial
                          {% elif item.conformidade == 25 %}inconformidade
                          {% elif item.conformidade == 0 %}nao-conforme
-                         {% elif item.conformidade == 'NA' %}nao-se-aplica
+                         {% else %}nao-se-aplica
                          {% endif %}">
             <p><strong>Status:</strong> {{ item.descricao }}</p>
             <p class="conformidade 
@@ -98,15 +98,14 @@
                 {% elif item.conformidade == 50 %}conformidade-parcial
                 {% elif item.conformidade == 25 %}conformidade-inconformidade
                 {% elif item.conformidade == 0 %}conformidade-nao-conforme
-                {% elif item.conformidade == 'NA' %}conformidade-nao-se-aplica
+                {% else %}conformidade-nao-se-aplica
                 {% endif %}">
                 Conformidade: 
                 {% if item.conformidade == 100 %}Conforme (100%)
                 {% elif item.conformidade == 50 %}Parcial (50%)
                 {% elif item.conformidade == 25 %}Inconformidade (25%)
                 {% elif item.conformidade == 0 %}Não Conforme (0%)
-                {% elif item.conformidade == 'NA' %}Não se aplica
-                {% else %}{{ item.conformidade }}%
+                {% else %}Não se aplica
                 {% endif %}
             </p>
             {% if item.observacoes %}
