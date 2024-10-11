@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file, make_response, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file, make_response, send_from_directory, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -15,7 +15,6 @@ from sqlalchemy import Float
 from models import db, User, Cliente, Documento, Checklist, ChecklistResposta
 from weasyprint import HTML, CSS
 from flask_cors import CORS
-from flask_wtf.csrf import CSRFProtect
 import traceback
 
 def remover_duplicatas(respostas):
@@ -58,8 +57,6 @@ def load_user(user_id):
 document_storage = LocalJSONStorage()
 
 init_session_timeout(app)
-
-csrf = CSRFProtect(app)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():

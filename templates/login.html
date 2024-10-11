@@ -70,6 +70,9 @@
             border: 1px solid transparent;
             border-radius: 4px;
         }
+        input::placeholder {
+            color: #999;
+        }
     </style>
 </head>
 <body>
@@ -86,9 +89,8 @@
             {% endif %}
         {% endwith %}
         <form method="POST" action="{{ url_for('login') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-            <input type="email" name="email" required>
-            <input type="password" name="password" required>
+            <input type="email" name="email" placeholder="Email" required>
+            <input type="password" name="password" placeholder="Senha" required>
             <button type="submit">Login</button>
         </form>
         <div class="register-link">

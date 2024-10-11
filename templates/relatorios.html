@@ -75,16 +75,11 @@
 <script>
 function excluirRelatorio(id) {
     if (confirm('Tem certeza que deseja excluir este relatório?')) {
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
         fetch(`/excluir_relatorio/${id}`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            body: JSON.stringify({
-                csrf_token: csrfToken
-            })
+                'Content-Type': 'application/json'
+            }
         })
         .then(response => {
             if (!response.ok) {
