@@ -47,12 +47,14 @@ class Checklist(db.Model):
 class ChecklistResposta(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     checklist_id = db.Column(db.Integer, db.ForeignKey('checklist.id'), nullable=False)
-    questao_id = db.Column(db.String(50), nullable=False)
-    descricao = db.Column(db.Text, nullable=False)
-    conformidade = db.Column(db.Integer, nullable=False)
+    questao_id = db.Column(db.Integer, nullable=False)
+    descricao = db.Column(db.String(500), nullable=False)
+    conformidade = db.Column(db.String(50))
     observacoes = db.Column(db.Text)
     anexo = db.Column(db.String(255))
-    secao = db.Column(db.String(255))  # Novo campo para a seção da questão
+
+    # Adicione um índice único se necessário
+    __table_args__ = (db.UniqueConstraint('checklist_id', 'questao_id', name='uq_checklist_questao'),)
 
     checklist = db.relationship('Checklist', backref=db.backref('respostas', lazy=True))
 

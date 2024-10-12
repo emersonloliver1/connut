@@ -16,15 +16,56 @@ from models import db, User, Cliente, Documento, Checklist, ChecklistResposta
 from weasyprint import HTML, CSS
 from flask_cors import CORS
 import traceback
+from sqlalchemy.exc import IntegrityError
+from functools import wraps
+from datetime import datetime, timedelta
+import threading
+
+# Configurações de cache
+CACHE = {}
+CACHE_TIMEOUT = timedelta(minutes=30)  # Ajuste conforme necessário
+
+def limpar_cache():
+    global CACHE
+    agora = datetime.now()
+    CACHE = {k: v for k, v in CACHE.items() if v['expira'] > agora}
+
+def cache_com_timeout(timeout=CACHE_TIMEOUT):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            cache_key = f.__name__ + str(args) + str(kwargs)
+            if cache_key in CACHE:
+                if CACHE[cache_key]['expira'] > datetime.now():
+                    return CACHE[cache_key]['valor']
+            
+            resultado = f(*args, **kwargs)
+            CACHE[cache_key] = {
+                'valor': resultado,
+                'expira': datetime.now() + timeout
+            }
+            return resultado
+        return decorated_function
+    return decorator
+
+def iniciar_limpeza_automatica(intervalo=300):  # 300 segundos = 5 minutos
+    def limpeza_periodica():
+        while True:
+            limpar_cache()
+            threading.Timer(intervalo, limpeza_periodica).start()
+    
+    threading.Timer(intervalo, limpeza_periodica).start()
 
 def remover_duplicatas(respostas):
-    vistas = set()
-    unicas = []
+    respostas_unicas = []
+    ids_vistos = set()
     for resposta in respostas:
-        if resposta.descricao not in vistas:
-            unicas.append(resposta)
-            vistas.add(resposta.descricao)
-    return unicas
+        if resposta.id not in ids_vistos:
+            respostas_unicas.append(resposta)
+            ids_vistos.add(resposta.id)
+    print(f"Total de respostas originais: {len(respostas)}")
+    print(f"Total de respostas únicas: {len(respostas_unicas)}")
+    return respostas_unicas
 
 load_dotenv()  # Carrega as variáveis de ambiente do arquivo .env
 
@@ -375,7 +416,6 @@ local_storage = LocalJSONStorage()
 @app.route('/salvar-checklist', methods=['POST'])
 @login_required
 def salvar_checklist():
-    app.logger.info("Rota /salvar-checklist acessada")
     try:
         data = request.form
         json_data = json.loads(data.get('dados'))
@@ -388,37 +428,31 @@ def salvar_checklist():
             status='concluido',
             porcentagem_conformidade=float(json_data['porcentagemConformidade']),
             tipo_checklist='higienico_sanitario',
-            crn=json_data.get('crn', '')  # Adicionando o CRN
+            crn=json_data.get('crn', '')
         )
         db.session.add(novo_checklist)
         db.session.flush()
         
-        for index, resposta in enumerate(json_data['respostas']):
-            anexo_key = f'anexo_{index}'
-            anexo_path = None
-            
-            if anexo_key in request.files:
-                file = request.files[anexo_key]
-                if file and allowed_file(file.filename):
-                    filename = secure_filename(file.filename)
-                    anexo_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                    file.save(anexo_path)
-            
-            nova_resposta = ChecklistResposta(
-                checklist_id=novo_checklist.id,
-                questao_id=resposta['id'],
-                descricao=resposta['descricao'],
-                conformidade=resposta['conformidade'],
-                observacoes=resposta.get('observacoes', ''),
-                anexo=anexo_path
-            )
-            db.session.add(nova_resposta)
+        respostas_existentes = {}  # Corrigido: inicialização correta do dicionário
+        for resposta in json_data['respostas']:
+            chave_unica = (novo_checklist.id, resposta['id'])
+            if chave_unica not in respostas_existentes:
+                nova_resposta = ChecklistResposta(
+                    checklist_id=novo_checklist.id,
+                    questao_id=resposta['id'],
+                    descricao=resposta['descricao'],
+                    conformidade=resposta['conformidade'],
+                    observacoes=resposta.get('observacoes', '')
+                )
+                db.session.add(nova_resposta)
+                respostas_existentes[chave_unica] = nova_resposta
         
         db.session.commit()
-        app.logger.info(f"Checklist salvo com sucesso: ID={novo_checklist.id}")
         return jsonify({"message": "Checklist salvo com sucesso!", "id": novo_checklist.id}), 200
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"error": "Erro ao salvar: respostas duplicadas detectadas."}), 400
     except Exception as e:
-        app.logger.error(f"Erro ao salvar checklist: {str(e)}")
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
@@ -576,6 +610,16 @@ def gerar_relatorio(cliente_id, checklist_id):
     # Remover duplicatas
     respostas_unicas = remover_duplicatas(respostas)
     
+    # Organize as respostas (sem seções)
+    respostas_organizadas = []
+    for resposta in respostas_unicas:
+        respostas_organizadas.append({
+            "descricao": resposta.descricao,
+            "conformidade": resposta.conformidade,
+            "observacoes": resposta.observacoes,
+            "anexo": resposta.anexo
+        })
+    
     relatorio = {
         'cliente_id': cliente.id,
         'checklist_id': checklist.id,
@@ -585,7 +629,9 @@ def gerar_relatorio(cliente_id, checklist_id):
         'area_observada': checklist.area_observada,
         'avaliador': checklist.avaliador,
         'porcentagem_conformidade': checklist.porcentagem_conformidade,
-        'respostas_unicas': respostas_unicas
+        'respostas': respostas_organizadas,
+        'total_documentos': Documento.query.filter_by(cliente_id=cliente.id).count(),
+        'documentos': Documento.query.filter_by(cliente_id=cliente.id).all()
     }
     
     return render_template('relatorio_detalhado.html', relatorio=relatorio)
@@ -593,41 +639,33 @@ def gerar_relatorio(cliente_id, checklist_id):
 @app.route('/exportar_pdf/<int:cliente_id>/<int:checklist_id>')
 @login_required
 @check_session_timeout
+@cache_com_timeout(timedelta(minutes=5))  # Cache por 5 minutos
 def exportar_pdf(cliente_id, checklist_id):
     cliente = Cliente.query.get_or_404(cliente_id)
     checklist = Checklist.query.get_or_404(checklist_id)
-    respostas = ChecklistResposta.query.filter_by(checklist_id=checklist.id).all()
+    # Use distinct() para evitar duplicatas
+    respostas = ChecklistResposta.query.filter_by(checklist_id=checklist.id).distinct().all()
     
-    # Organize as respostas por seção e remova duplicatas
-    respostas_por_secao = {}
-    questoes_vistas = set()
-    for resposta in respostas:
-        # Pule as respostas que não têm conformidade (títulos das seções)
-        if resposta.conformidade is None:
-            continue
+    # Remover duplicatas usando a função remover_duplicatas
+    respostas_unicas = remover_duplicatas(respostas)
+    
+    # Organize as respostas (sem seções)
+    respostas_organizadas = []
+    for resposta in respostas_unicas:
+        anexo_url = None
+        if hasattr(resposta, 'anexo') and resposta.anexo:
+            anexo_url = url_for('uploads', filename=os.path.basename(resposta.anexo), _external=True)
         
-        secao = resposta.secao or "Sem Seção"
-        if secao not in respostas_por_secao:
-            respostas_por_secao[secao] = []
+        conformidade = resposta.conformidade if resposta.conformidade is not None else 'NA'
         
-        # Verifica se a questão já foi vista
-        if resposta.questao_id not in questoes_vistas:
-            questoes_vistas.add(resposta.questao_id)
-            
-            # Use uma URL para o anexo em vez de um caminho de arquivo
-            anexo_url = None
-            if resposta.anexo:
-                anexo_url = url_for('uploads', filename=os.path.basename(resposta.anexo), _external=True)
-            
-            # Trata questões não preenchidas como "Não se aplica"
-            conformidade = resposta.conformidade if resposta.conformidade is not None else 'NA'
-            
-            respostas_por_secao[secao].append({
-                "descricao": resposta.descricao,
-                "conformidade": conformidade,
-                "observacoes": resposta.observacoes,
-                "anexo": anexo_url
-            })
+        respostas_organizadas.append({
+            "descricao": resposta.descricao,
+            "conformidade": conformidade,
+            "observacoes": resposta.observacoes,
+            "anexo": anexo_url
+        })
+
+    print(f"Total de respostas organizadas: {len(respostas_organizadas)}")
     
     relatorio = {
         'cliente_id': cliente.id,
@@ -639,7 +677,7 @@ def exportar_pdf(cliente_id, checklist_id):
         'avaliador': checklist.avaliador,
         'crn': checklist.crn or "Não informado",
         'porcentagem_conformidade': checklist.porcentagem_conformidade,
-        'respostas_por_secao': respostas_por_secao
+        'respostas': respostas_organizadas
     }
     
     html_content = render_template('relatorio_pdf.html', relatorio=relatorio)
@@ -705,6 +743,52 @@ def excluir_relatorio(id):
         error_message = f"Erro ao excluir relatório: {str(e)}\n{traceback.format_exc()}"
         app.logger.error(error_message)
         return jsonify({'success': False, 'message': error_message}), 500
+
+@app.route('/inspecionar_dados/<int:checklist_id>')
+@login_required
+def inspecionar_dados(checklist_id):
+    respostas = ChecklistResposta.query.filter_by(checklist_id=checklist_id).all()
+    dados = [{
+        'id': r.id,
+        'descricao': r.descricao,
+        'questao_id': r.questao_id,
+        'conformidade': r.conformidade
+    } for r in respostas]
+    return jsonify(dados)
+
+def limpar_cache():
+    global CACHE
+    agora = datetime.now()
+    CACHE = {k: v for k, v in CACHE.items() if v['expira'] > agora}
+
+def cache_com_timeout(timeout=CACHE_TIMEOUT):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            cache_key = f.__name__ + str(args) + str(kwargs)
+            if cache_key in CACHE:
+                if CACHE[cache_key]['expira'] > datetime.now():
+                    return CACHE[cache_key]['valor']
+            
+            resultado = f(*args, **kwargs)
+            CACHE[cache_key] = {
+                'valor': resultado,
+                'expira': datetime.now() + timeout
+            }
+            return resultado
+        return decorated_function
+    return decorator
+
+def iniciar_limpeza_automatica(intervalo=300):  # 300 segundos = 5 minutos
+    def limpeza_periodica():
+        while True:
+            limpar_cache()
+            threading.Timer(intervalo, limpeza_periodica).start()
+    
+    threading.Timer(intervalo, limpeza_periodica).start()
+
+if __name__ == '__main__':
+    iniciar_limpeza_automatica()
 
 if __name__ == '__main__':
     with app.app_context():

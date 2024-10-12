@@ -83,41 +83,38 @@
     </div>
 
     <h2>Respostas do Checklist</h2>
-    {% for secao, itens in relatorio.respostas_por_secao.items() %}
-        <h3>{{ secao }}</h3>
-        {% for item in itens %}
-        <div class="item {% if item.conformidade == 100 %}conforme
-                         {% elif item.conformidade == 50 %}parcial
-                         {% elif item.conformidade == 25 %}inconformidade
-                         {% elif item.conformidade == 0 %}nao-conforme
-                         {% else %}nao-se-aplica
-                         {% endif %}">
-            <p><strong>Status:</strong> {{ item.descricao }}</p>
-            <p class="conformidade 
-                {% if item.conformidade == 100 %}conformidade-conforme
-                {% elif item.conformidade == 50 %}conformidade-parcial
-                {% elif item.conformidade == 25 %}conformidade-inconformidade
-                {% elif item.conformidade == 0 %}conformidade-nao-conforme
-                {% else %}conformidade-nao-se-aplica
-                {% endif %}">
-                Conformidade: 
-                {% if item.conformidade == 100 %}Conforme (100%)
-                {% elif item.conformidade == 50 %}Parcial (50%)
-                {% elif item.conformidade == 25 %}Inconformidade (25%)
-                {% elif item.conformidade == 0 %}Não Conforme (0%)
-                {% else %}Não se aplica
-                {% endif %}
-            </p>
-            {% if item.observacoes %}
-            <p class="observacoes">Observações: {{ item.observacoes }}</p>
+    {% for item in relatorio.respostas %}
+    <div class="item {% if item.conformidade == '100' %}conforme
+                     {% elif item.conformidade == '50' %}parcial
+                     {% elif item.conformidade == '25' %}inconformidade
+                     {% elif item.conformidade == '0' %}nao-conforme
+                     {% else %}nao-se-aplica
+                     {% endif %}">
+        <p class="status">Status: {{ item.descricao }}</p>
+        <p class="conformidade 
+            {% if item.conformidade == '100' %}conformidade-conforme
+            {% elif item.conformidade == '50' %}conformidade-parcial
+            {% elif item.conformidade == '25' %}conformidade-inconformidade
+            {% elif item.conformidade == '0' %}conformidade-nao-conforme
+            {% else %}conformidade-nao-se-aplica
+            {% endif %}">
+            Conformidade: 
+            {% if item.conformidade == '100' %}Conforme (100%)
+            {% elif item.conformidade == '50' %}Parcial (50%)
+            {% elif item.conformidade == '25' %}Inconformidade (25%)
+            {% elif item.conformidade == '0' %}Não Conforme (0%)
+            {% else %}Não se aplica
             {% endif %}
-            {% if item.anexo %}
-            <div class="anexo">
-                <img src="{{ item.anexo }}" alt="Anexo">
-            </div>
-            {% endif %}
+        </p>
+        {% if item.observacoes %}
+        <p class="observacoes">Observações: {{ item.observacoes }}</p>
+        {% endif %}
+        {% if item.anexo %}
+        <div class="anexo">
+            <img src="{{ item.anexo }}" alt="Anexo">
         </div>
-        {% endfor %}
+        {% endif %}
+    </div>
     {% endfor %}
 </body>
 </html>
