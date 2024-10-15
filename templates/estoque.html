@@ -89,7 +89,7 @@
         const descricao = document.getElementById('descricao').value;
         if (descricao) {
             // Substitua 'SUA_CHAVE_API_AQUI' pela sua chave real da API Unsplash
-            fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(descricao)}&client_id=SUA_CHAVE_API_AQUI`)
+            fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(descricao)}&client_id=IC6diVE23dHgnpKZ-8pOCxrvay3MBI383Px11IF4RZU`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.results && data.results.length > 0) {
