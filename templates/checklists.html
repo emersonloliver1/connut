@@ -448,7 +448,7 @@
             questoes.forEach((questao, index) => {
                 const inputAnexo = questao.querySelector('input[type="file"]');
                 if (inputAnexo && inputAnexo.files.length > 0) {
-                    formData.append(`anexo_${index}`, inputAnexo.files[0]);
+                    formData.append(`anexo_${index + 1}`, inputAnexo.files[0]);
                 }
             });
 

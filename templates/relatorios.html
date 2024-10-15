@@ -48,9 +48,6 @@
                             <p class="text-sm text-gray-600">Conformidade: {{ relatorio.porcentagem_conformidade }}%</p>
                         </div>
                         <div class="space-x-2">
-                            <a href="{{ url_for('gerar_relatorio', cliente_id=relatorio.cliente_id, checklist_id=relatorio.id) }}" class="inline-block bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition duration-300">
-                                Visualizar
-                            </a>
                             <a href="{{ url_for('exportar_pdf', cliente_id=relatorio.cliente_id, checklist_id=relatorio.id) }}" class="inline-block bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition duration-300">
                                 Exportar PDF
                             </a>

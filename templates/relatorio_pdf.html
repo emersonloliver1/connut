@@ -51,17 +51,13 @@
             font-weight: bold;
             margin-top: 5px;
         }
-        .conformidade-conforme { color: #4CAF50; }
-        .conformidade-parcial { color: #FFA500; }
-        .conformidade-inconformidade { color: #FF6347; }
-        .conformidade-nao-conforme { color: #F44336; }
-        .conformidade-nao-se-aplica { color: #9E9E9E; }
-        .observacoes {
-            font-style: italic;
-            margin-top: 5px;
-        }
+        .conformidade-100 { color: #4CAF50; }
+        .conformidade-50 { color: #FFA500; }
+        .conformidade-25 { color: #FF6347; }
+        .conformidade-0 { color: #F44336; }
+        .conformidade-NA { color: #9E9E9E; }
         .anexo img {
-            max-width: 300px;
+            max-width: 100%;
             height: auto;
             margin-top: 10px;
         }
@@ -84,37 +80,30 @@
 
     <h2>Respostas do Checklist</h2>
     {% for item in relatorio.respostas %}
-    <div class="item {% if item.conformidade == '100' %}conforme
-                     {% elif item.conformidade == '50' %}parcial
-                     {% elif item.conformidade == '25' %}inconformidade
-                     {% elif item.conformidade == '0' %}nao-conforme
-                     {% else %}nao-se-aplica
-                     {% endif %}">
-        <p class="status">Status: {{ item.descricao }}</p>
-        <p class="conformidade 
-            {% if item.conformidade == '100' %}conformidade-conforme
-            {% elif item.conformidade == '50' %}conformidade-parcial
-            {% elif item.conformidade == '25' %}conformidade-inconformidade
-            {% elif item.conformidade == '0' %}conformidade-nao-conforme
-            {% else %}conformidade-nao-se-aplica
-            {% endif %}">
-            Conformidade: 
-            {% if item.conformidade == '100' %}Conforme (100%)
-            {% elif item.conformidade == '50' %}Parcial (50%)
-            {% elif item.conformidade == '25' %}Inconformidade (25%)
-            {% elif item.conformidade == '0' %}Não Conforme (0%)
-            {% else %}Não se aplica
+        <div class="item {% if item.conformidade == '100' %}conforme
+                 {% elif item.conformidade == '50' %}parcial
+                 {% elif item.conformidade == '25' %}inconformidade
+                 {% elif item.conformidade == '0' %}nao-conforme
+                 {% else %}nao-se-aplica
+                 {% endif %}">
+            <p class="status">{{ item.descricao }}</p>
+            <p class="conformidade conformidade-{{ item.conformidade }}">
+                Conformidade: 
+                {% if item.conformidade == 'NA' %}
+                    Não se aplica
+                {% else %}
+                    {{ item.conformidade }}%
+                {% endif %}
+            </p>
+            {% if item.observacoes %}
+            <p class="observacoes">Observações: {{ item.observacoes }}</p>
             {% endif %}
-        </p>
-        {% if item.observacoes %}
-        <p class="observacoes">Observações: {{ item.observacoes }}</p>
-        {% endif %}
-        {% if item.anexo %}
-        <div class="anexo">
-            <img src="{{ item.anexo }}" alt="Anexo">
+            {% if item.anexo %}
+            <div class="anexo">
+                <img src="data:image/jpeg;base64,{{ item.anexo }}" alt="Anexo" style="max-width: 100%; height: auto;">
+            </div>
+            {% endif %}
         </div>
-        {% endif %}
-    </div>
     {% endfor %}
 </body>
 </html>

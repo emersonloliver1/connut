@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file, make_response, send_from_directory, abort
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file, make_response, send_from_directory, abort, current_app
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -57,15 +57,12 @@ def iniciar_limpeza_automatica(intervalo=300):  # 300 segundos = 5 minutos
     threading.Timer(intervalo, limpeza_periodica).start()
 
 def remover_duplicatas(respostas):
-    respostas_unicas = []
-    ids_vistos = set()
+    vistas = {}
     for resposta in respostas:
-        if resposta.id not in ids_vistos:
-            respostas_unicas.append(resposta)
-            ids_vistos.add(resposta.id)
-    print(f"Total de respostas originais: {len(respostas)}")
-    print(f"Total de respostas únicas: {len(respostas_unicas)}")
-    return respostas_unicas
+        chave = resposta.descricao.strip().lower()
+        if chave not in vistas or resposta.conformidade:
+            vistas[chave] = resposta
+    return list(vistas.values())
 
 load_dotenv()  # Carrega as variáveis de ambiente do arquivo .env
 
@@ -79,8 +76,12 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'sua_chave_secreta_aqui')
 
 # Configuração para upload de arquivos
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'txt', 'jpg', 'jpeg', 'png', 'gif'}
-UPLOAD_FOLDER = 'uploads'
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# Certifique-se de que a pasta uploads existe
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
 
 # Inicialize o db com o app
 db.init_app(app)
@@ -404,10 +405,6 @@ def visualizar_documento(id):
         download_name=documento.nome
     )
 
-# Certifique-se de que a pasta de uploads existe
-if not os.path.exists(app.config['UPLOAD_FOLDER']):
-    os.makedirs(app.config['UPLOAD_FOLDER'])
-
 # Inicialize o armazenamento local JSON
 local_storage = LocalJSONStorage()
 
@@ -433,25 +430,30 @@ def salvar_checklist():
         db.session.add(novo_checklist)
         db.session.flush()
         
-        respostas_existentes = {}  # Corrigido: inicialização correta do dicionário
         for resposta in json_data['respostas']:
-            chave_unica = (novo_checklist.id, resposta['id'])
-            if chave_unica not in respostas_existentes:
-                nova_resposta = ChecklistResposta(
-                    checklist_id=novo_checklist.id,
-                    questao_id=resposta['id'],
-                    descricao=resposta['descricao'],
-                    conformidade=resposta['conformidade'],
-                    observacoes=resposta.get('observacoes', '')
-                )
-                db.session.add(nova_resposta)
-                respostas_existentes[chave_unica] = nova_resposta
+            nova_resposta = ChecklistResposta(
+                checklist_id=novo_checklist.id,
+                questao_id=resposta['id'],
+                descricao=resposta['descricao'],
+                conformidade=resposta['conformidade'],
+                observacoes=resposta.get('observacoes', '')
+            )
+            
+            # Processa o anexo, se houver
+            anexo_key = f"anexo_{resposta['id']}"
+            if anexo_key in request.files:
+                arquivo = request.files[anexo_key]
+                if arquivo and arquivo.filename != '':
+                    filename = secure_filename(arquivo.filename)
+                    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                    arquivo.save(file_path)
+                    nova_resposta.anexo = filename
+                    print(f"Anexo salvo: {file_path}")  # Log para debug
+            
+            db.session.add(nova_resposta)
         
         db.session.commit()
         return jsonify({"message": "Checklist salvo com sucesso!", "id": novo_checklist.id}), 200
-    except IntegrityError:
-        db.session.rollback()
-        return jsonify({"error": "Erro ao salvar: respostas duplicadas detectadas."}), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
@@ -523,7 +525,7 @@ def salvar_checklist_rdc216():
             status='concluido',
             porcentagem_conformidade=float(json_data['porcentagemConformidade']),
             tipo_checklist='rdc216',
-            crn=json_data.get('crn', '')  # Adicionando o CRN
+            crn=json_data.get('crn', '')
         )
         db.session.add(novo_checklist)
         db.session.flush()
@@ -537,13 +539,15 @@ def salvar_checklist_rdc216():
                 observacoes=resposta['observacoes']
             )
             
-            if resposta.get('anexo'):
-                arquivo = request.files.get(f"anexo_{resposta['id']}")
-                if arquivo:
+            # Processa o anexo, se houver
+            if f"anexo_{resposta['id']}" in request.files:
+                arquivo = request.files[f"anexo_{resposta['id']}"]
+                if arquivo and arquivo.filename != '':
                     filename = secure_filename(arquivo.filename)
                     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                     arquivo.save(file_path)
                     nova_resposta.anexo = filename
+                    print(f"Anexo salvo: {file_path}")  # Log para debug
             
             db.session.add(nova_resposta)
         
@@ -598,122 +602,68 @@ def relatorios():
 
     return render_template('relatorios.html', relatorios=relatorios, clientes=clientes)
 
-@app.route('/gerar_relatorio/<int:cliente_id>/<int:checklist_id>')
-@login_required
-@check_session_timeout
-def gerar_relatorio(cliente_id, checklist_id):
-    cliente = Cliente.query.get_or_404(cliente_id)
-    checklist = Checklist.query.get_or_404(checklist_id)
-    
-    respostas = ChecklistResposta.query.filter_by(checklist_id=checklist.id).all()
-    
-    # Remover duplicatas
-    respostas_unicas = remover_duplicatas(respostas)
-    
-    # Organize as respostas (sem seções)
-    respostas_organizadas = []
-    for resposta in respostas_unicas:
-        respostas_organizadas.append({
-            "descricao": resposta.descricao,
-            "conformidade": resposta.conformidade,
-            "observacoes": resposta.observacoes,
-            "anexo": resposta.anexo
-        })
-    
-    relatorio = {
-        'cliente_id': cliente.id,
-        'checklist_id': checklist.id,
-        'nome_cliente': cliente.nome,
-        'tipo_checklist': checklist.tipo_checklist,
-        'data_inspecao': checklist.data_inspecao,
-        'area_observada': checklist.area_observada,
-        'avaliador': checklist.avaliador,
-        'porcentagem_conformidade': checklist.porcentagem_conformidade,
-        'respostas': respostas_organizadas,
-        'total_documentos': Documento.query.filter_by(cliente_id=cliente.id).count(),
-        'documentos': Documento.query.filter_by(cliente_id=cliente.id).all()
-    }
-    
-    return render_template('relatorio_detalhado.html', relatorio=relatorio)
+import base64
 
 @app.route('/exportar_pdf/<int:cliente_id>/<int:checklist_id>')
 @login_required
 @check_session_timeout
-@cache_com_timeout(timedelta(minutes=5))  # Cache por 5 minutos
+@cache_com_timeout(timedelta(minutes=5))
 def exportar_pdf(cliente_id, checklist_id):
     cliente = Cliente.query.get_or_404(cliente_id)
     checklist = Checklist.query.get_or_404(checklist_id)
-    # Use distinct() para evitar duplicatas
-    respostas = ChecklistResposta.query.filter_by(checklist_id=checklist.id).distinct().all()
     
-    # Remover duplicatas usando a função remover_duplicatas
+    respostas = ChecklistResposta.query.filter_by(checklist_id=checklist.id).all()
     respostas_unicas = remover_duplicatas(respostas)
     
-    # Organize as respostas (sem seções)
     respostas_organizadas = []
     for resposta in respostas_unicas:
-        anexo_url = None
-        if hasattr(resposta, 'anexo') and resposta.anexo:
-            anexo_url = url_for('uploads', filename=os.path.basename(resposta.anexo), _external=True)
-        
-        conformidade = resposta.conformidade if resposta.conformidade is not None else 'NA'
-        
-        respostas_organizadas.append({
-            "descricao": resposta.descricao,
-            "conformidade": conformidade,
-            "observacoes": resposta.observacoes,
-            "anexo": anexo_url
-        })
+        if resposta.conformidade and resposta.conformidade != '':
+            anexo_data = None
+            if resposta.anexo:
+                anexo_path = os.path.join(app.config['UPLOAD_FOLDER'], resposta.anexo)
+                if os.path.exists(anexo_path):
+                    with open(anexo_path, "rb") as image_file:
+                        anexo_data = base64.b64encode(image_file.read()).decode('utf-8')
+                    print(f"Anexo encontrado: {anexo_path}")  # Log para debug
+                else:
+                    print(f"Arquivo não encontrado: {anexo_path}")  # Log para debug
+            
+            respostas_organizadas.append({
+                "descricao": resposta.descricao,
+                "conformidade": resposta.conformidade,
+                "observacoes": resposta.observacoes,
+                "anexo": anexo_data
+            })
 
     print(f"Total de respostas organizadas: {len(respostas_organizadas)}")
-    
+
     relatorio = {
-        'cliente_id': cliente.id,
-        'checklist_id': checklist.id,
-        'nome_cliente': cliente.nome,
-        'tipo_checklist': checklist.tipo_checklist.upper(),
-        'data_inspecao': checklist.data_inspecao,
-        'area_observada': checklist.area_observada,
-        'avaliador': checklist.avaliador,
-        'crn': checklist.crn or "Não informado",
-        'porcentagem_conformidade': checklist.porcentagem_conformidade,
-        'respostas': respostas_organizadas
+        "nome_cliente": cliente.nome,
+        "tipo_checklist": checklist.tipo_checklist,
+        "data_inspecao": checklist.data_inspecao,
+        "area_observada": checklist.area_observada,
+        "avaliador": checklist.avaliador,
+        "crn": checklist.crn,
+        "porcentagem_conformidade": checklist.porcentagem_conformidade,
+        "respostas": respostas_organizadas
     }
+
+    rendered = render_template('relatorio_pdf.html', relatorio=relatorio)
     
-    html_content = render_template('relatorio_pdf.html', relatorio=relatorio)
-    
-    css = CSS(string='''
-        @page { size: A4; margin: 1cm }
-        body { font-family: Arial, sans-serif; }
-        img { max-width: 100%; height: auto; }
-    ''')
-    
-    pdf = HTML(string=html_content, base_url=request.url_root).write_pdf(stylesheets=[css])
-    
+    # Usando WeasyPrint para gerar o PDF
+    html = HTML(string=rendered)
+    pdf = html.write_pdf()
+
     response = make_response(pdf)
     response.headers['Content-Type'] = 'application/pdf'
-    response.headers['Content-Disposition'] = 'inline; filename=relatorio.pdf'
-    
+    response.headers['Content-Disposition'] = f'inline; filename=relatorio_{cliente.nome}_{checklist.data_inspecao}.pdf'
+
     return response
 
+# Adicione esta rota para servir os arquivos de upload
 @app.route('/uploads/<filename>')
-def uploads(filename):
+def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-
-def gerar_pdf_checklist(checklist_id):
-    # ... (código existente)
-
-    for resposta in checklist.respostas:
-        # ... (código existente para adicionar a resposta)
-
-        if resposta.anexo:
-            try:
-                img = Image(resposta.anexo, width=200, height=150)
-                elements.append(img)
-            except Exception as e:
-                print(f"Erro ao adicionar imagem: {e}")
-
-    # ... (resto do código para gerar o PDF)
 
 @app.route('/estoque')
 @login_required
