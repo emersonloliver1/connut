@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coleta de Amostras - CONNUT</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .error {
+            border-color: red;
+        }
+        .success {
+            border-color: green;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <header class="bg-green-600 text-white p-4 flex items-center">
+        <img src="{{ url_for('static', filename='logo.jpg') }}" alt="CONNUT Logo" class="h-12 w-12 rounded-full mr-4">
+        <h1 class="text-2xl font-bold">Coleta de Amostras</h1>
+        <div class="ml-auto flex items-center">
+            <span class="mr-4">Olá, Emerson</span>
+            <button class="bg-white text-green-600 font-bold py-1 px-3 rounded">
+                Sair
+            </button>
+        </div>
+    </header>
+    <div class="container mx-auto p-4">
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold mb-4 text-left text-gray-800">Gerenciamento de Coleta de Amostras</h2>
+            <p class="text-left text-gray-600">Aqui você pode gerenciar as coletas de amostras.</p>
+            <div class="text-left mt-4">
+                <button id="registrosButton" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">
+                    Registros
+                </button>
+            </div>
+            <div id="formContainer" class="mt-4 hidden">
+                <form id="registroForm" action="{{ url_for('coleta_amostras.submit_registros') }}" method="post" enctype="multipart/form-data" onsubmit="return validateForm()">
+                    <table class="w-full border-collapse">
+                        <thead>
+                            <tr>
+                                <th class="border p-2">ITEM</th>
+                                <th class="border p-2">ANEXO (IMAGEM)</th>
+                                <th class="border p-2">DATA DA COLETA</th>
+                                <th class="border p-2">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="registroTableBody">
+                            <tr>
+                                <td class="border p-2">
+                                    <input type="text" name="item[]" class="w-full border border-gray-300 p-2 rounded" required oninput="this.value = this.value.toUpperCase()">
+                                </td>
+                                <td class="border p-2">
+                                    <input type="file" name="anexo[]" accept="image/*" class="w-full border border-gray-300 p-2 rounded" required onchange="previewImage(this)">
+                                    <img src="" alt="Pré-visualização" class="image-preview mt-2" style="display:none; max-height: 100px;">
+                                </td>
+                                <td class="border p-2">
+                                    <input type="datetime-local" name="data_coleta[]" class="w-full border border-gray-300 p-2 rounded" required>
+                                </td>
+                                <td class="border p-2 text-center">
+                                    <!-- Botão de Remover não incluído na primeira linha -->
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded mt-4">
+                        Salvar
+                    </button>
+                </form>
+            </div>
+        </div>
+        <div class="text-center mt-6">
+            <a href="{{ url_for('index') }}" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded">
+                Voltar para o Menu Principal
+            </a>
+        </div>
+    </div>
+    <script>
+        document.getElementById('registrosButton').addEventListener('click', function() {
+            document.getElementById('formContainer').classList.toggle('hidden');
+        });
+
+        function addRow() {
+            const tableBody = document.getElementById('registroTableBody');
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td class="border p-2">
+                    <input type="text" name="item[]" class="w-full border border-gray-300 p-2 rounded" required oninput="this.value = this.value.toUpperCase()">
+                </td>
+                <td class="border p-2">
+                    <input type="file" name="anexo[]" accept="image/*" class="w-full border border-gray-300 p-2 rounded" required>
+                </td>
+                <td class="border p-2">
+                    <input type="datetime-local" name="data_coleta[]" class="w-full border border-gray-300 p-2 rounded" required>
+                </td>
+                <td class="border p-2 text-center">
+                    <button type="button" class="bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-2 rounded" onclick="removeRow(this)">
+                        Remover
+                    </button>
+                </td>
+            `;
+            tableBody.appendChild(newRow);
+            monitorRow(newRow);
+        }
+
+        function removeRow(button) {
+            const row = button.parentElement.parentElement;
+            row.remove();
+        }
+
+        function monitorRow(row) {
+            const inputs = row.querySelectorAll('input');
+            inputs.forEach(input => {
+                input.addEventListener('change', () => {
+                    if (Array.from(inputs).every(input => input.value)) {
+                        addRow();
+                    }
+                });
+            });
+        }
+
+        function validateForm() {
+            let valid = true;
+            const inputs = document.querySelectorAll('#registroTableBody input');
+            inputs.forEach(input => {
+                if (!input.value) {
+                    input.classList.add('error');
+                    valid = false;
+                } else {
+                    input.classList.remove('error');
+                    input.classList.add('success');
+                }
+            });
+            return valid;
+        }
+
+        // Inicializa a primeira linha
+        monitorRow(document.querySelector('#registroTableBody tr'));
+    </script>
+    <script>
+        function previewImage(input) {
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const imgElement = input.parentElement.querySelector('.image-preview');
+                    imgElement.src = e.target.result;
+                    imgElement.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+    </script>
+</body>
+</html>

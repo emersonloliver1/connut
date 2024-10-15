@@ -20,6 +20,7 @@ from sqlalchemy.exc import IntegrityError
 from functools import wraps
 from datetime import datetime, timedelta
 import threading
+from coleta_amostras import coleta_amostras_bp
 
 # Configurações de cache
 CACHE = {}
@@ -153,7 +154,8 @@ def index():
         {"icon": "💬", "text": "Atendimentos", "url": "#"},
         {"icon": "📄", "text": "Laudos", "url": "#"},
         {"icon": "❓", "text": "Ajuda", "url": "#"},
-        {"icon": "📦", "text": "Estoque", "url": url_for('estoque')}
+        {"icon": "📦", "text": "Estoque", "url": url_for('estoque')},
+        {"icon": "🧪", "text": "Coleta de Amostras", "url": url_for('coleta_amostras.coleta_amostras')}
     ]
     return render_template('index.html', menu_items=menu_items, current_user=current_user)
 
@@ -736,6 +738,8 @@ def iniciar_limpeza_automatica(intervalo=300):  # 300 segundos = 5 minutos
             threading.Timer(intervalo, limpeza_periodica).start()
     
     threading.Timer(intervalo, limpeza_periodica).start()
+
+app.register_blueprint(coleta_amostras_bp)
 
 if __name__ == '__main__':
     iniciar_limpeza_automatica()
