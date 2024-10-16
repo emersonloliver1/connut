@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Registros PDF</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .logo { width: 100px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        h1 { text-align: center; }
+    </style>
+</head>
+<body>
+    <img src="{{ logo_path }}" alt="Logo" class="logo">
+    <h1>Registro de Coleta</h1>
+    <table>
+        <tr>
+            <th>ID</th>
+            <td>{{ registro.id }}</td>
+        </tr>
+        <tr>
+            <th>Item</th>
+            <td>{{ registro.item }}</td>
+        </tr>
+        <tr>
+            <th>Data da Coleta</th>
+            <td>{{ registro.data_coleta }}</td>
+        </tr>
+        <tr>
+            <th>Nutricionista</th>
+            <td>{{ registro.nutricionista }}</td>
+        </tr>
+        <tr>
+            <th>CRN</th>
+            <td>{{ registro.crn }}</td>
+        </tr>
+        <tr>
+            <th>Tipo de Refeição</th>
+            <td>{{ registro.tipo_refeicao }}</td>
+        </tr>
+        <tr>
+            <th>Observações</th>
+            <td>{{ registro.observacoes }}</td>
+        </tr>
+    </table>
+    <h2>Imagem Anexada</h2>
+    <img src="data:image/jpeg;base64,{{ encoded_image }}" alt="Imagem" style="width: 200px;">
+</body>
+</html>

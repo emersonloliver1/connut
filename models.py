@@ -1,62 +1,72 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
-from datetime import datetime
+from sqlalchemy import Column, Integer, String, Date, Float, Text, ForeignKey, UniqueConstraint
+from sqlalchemy.orm import relationship
 
 db = SQLAlchemy()
 
 class User(db.Model, UserMixin):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password = db.Column(db.String(255), nullable=False)
-    crn = db.Column(db.String(20))  # Certifique-se de que esta linha existe
+    __tablename__ = 'users'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=False)
+    email = Column(String(120), unique=True, nullable=False)
+    password = Column(String(255), nullable=False)
+    crn = Column(String(20))
 
 class Cliente(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    nome = db.Column(db.String(100), nullable=False)
-    tipo_pessoa = db.Column(db.String(10), nullable=False)
-    documento = db.Column(db.String(20), unique=True, nullable=False)
-    telefone = db.Column(db.String(20))
-    cep = db.Column(db.String(10))
-    endereco = db.Column(db.String(200))
-    numero = db.Column(db.String(10))
-    complemento = db.Column(db.String(100))
-    cidade = db.Column(db.String(100))
-    estado = db.Column(db.String(2))
+    __tablename__ = 'clientes'
+
+    id = Column(Integer, primary_key=True)
+    nome = Column(String(100), nullable=False)
+    tipo_pessoa = Column(String(10), nullable=False)
+    documento = Column(String(20), unique=True, nullable=False)
+    telefone = Column(String(20))
+    cep = Column(String(10))
+    endereco = Column(String(200))
+    numero = Column(String(10))
+    complemento = Column(String(100))
+    cidade = Column(String(100))
+    estado = Column(String(2))
 
 class Documento(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    nome = db.Column(db.String(100), nullable=False)
-    tipo_arquivo = db.Column(db.String(50), nullable=False)
-    cliente_id = db.Column(db.Integer, db.ForeignKey('cliente.id'), nullable=False)
-    cliente = db.relationship('Cliente', backref=db.backref('documentos', lazy=True))
+    __tablename__ = 'documentos'
+
+    id = Column(Integer, primary_key=True)
+    nome = Column(String(100), nullable=False)
+    tipo_arquivo = Column(String(50), nullable=False)
+    cliente_id = Column(Integer, ForeignKey('clientes.id'), nullable=False)
+    cliente = relationship('Cliente', backref='documentos')
 
 class Checklist(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    cliente_id = db.Column(db.Integer, db.ForeignKey('cliente.id'), nullable=False)
-    avaliador = db.Column(db.String(100), nullable=False)
-    data_inspecao = db.Column(db.Date, nullable=False)
-    area_observada = db.Column(db.String(200), nullable=False)
-    status = db.Column(db.String(20), nullable=False)
-    porcentagem_conformidade = db.Column(db.Float, nullable=False)
-    tipo_checklist = db.Column(db.String(50), nullable=False)
-    crn = db.Column(db.String(20))  # Adicionando o campo CRN
+    __tablename__ = 'checklists'
 
-    cliente = db.relationship('Cliente', backref=db.backref('checklists', lazy=True))
+    id = Column(Integer, primary_key=True)
+    cliente_id = Column(Integer, ForeignKey('clientes.id'), nullable=False)
+    avaliador = Column(String(100), nullable=False)
+    data_inspecao = Column(Date, nullable=False)
+    area_observada = Column(String(200), nullable=False)
+    status = Column(String(20), nullable=False)
+    porcentagem_conformidade = Column(Float, nullable=False)
+    tipo_checklist = Column(String(50), nullable=False)
+    crn = Column(String(20))
+
+    cliente = relationship('Cliente', backref='checklists')
 
 class ChecklistResposta(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    checklist_id = db.Column(db.Integer, db.ForeignKey('checklist.id'), nullable=False)
-    questao_id = db.Column(db.Integer, nullable=False)
-    descricao = db.Column(db.String(500), nullable=False)
-    conformidade = db.Column(db.String(50))
-    observacoes = db.Column(db.Text)
-    anexo = db.Column(db.String(255))
+    __tablename__ = 'checklist_respostas'
 
-    # Adicione um índice único se necessário
-    __table_args__ = (db.UniqueConstraint('checklist_id', 'questao_id', name='uq_checklist_questao'),)
+    id = Column(Integer, primary_key=True)
+    checklist_id = Column(Integer, ForeignKey('checklists.id'), nullable=False)
+    questao_id = Column(Integer, nullable=False)
+    descricao = Column(String(500), nullable=False)
+    conformidade = Column(String(50))
+    observacoes = Column(Text)
+    anexo = Column(String(255))
 
-    checklist = db.relationship('Checklist', backref=db.backref('respostas', lazy=True))
+    __table_args__ = (UniqueConstraint('checklist_id', 'questao_id', name='uq_checklist_questao'),)
+
+    checklist = relationship('Checklist', backref='respostas')
 
     def __repr__(self):
         return f'<ChecklistResposta {self.id}>'

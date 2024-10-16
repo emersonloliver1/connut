@@ -1,4 +1,5 @@
 import os
+import logging
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file, make_response, send_from_directory, abort, current_app
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -21,6 +22,14 @@ from functools import wraps
 from datetime import datetime, timedelta
 import threading
 from coleta_amostras import coleta_amostras_bp
+from database_config import DATABASE_URL, ssl_args
+
+# No início do arquivo, após as importações
+load_dotenv()  # Isso deve estar no início do arquivo, após as importações
+
+# Configuração do logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 # Configurações de cache
 CACHE = {}
@@ -65,15 +74,58 @@ def remover_duplicatas(respostas):
             vistas[chave] = resposta
     return list(vistas.values())
 
-load_dotenv()  # Carrega as variáveis de ambiente do arquivo .env
+# Configurações de cache
+CACHE = {}
+CACHE_TIMEOUT = timedelta(minutes=30)  # Ajuste conforme necessário
+
+def limpar_cache():
+    global CACHE
+    agora = datetime.now()
+    CACHE = {k: v for k, v in CACHE.items() if v['expira'] > agora}
+
+def cache_com_timeout(timeout=CACHE_TIMEOUT):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            cache_key = f.__name__ + str(args) + str(kwargs)
+            if cache_key in CACHE:
+                if CACHE[cache_key]['expira'] > datetime.now():
+                    return CACHE[cache_key]['valor']
+            
+            resultado = f(*args, **kwargs)
+            CACHE[cache_key] = {
+                'valor': resultado,
+                'expira': datetime.now() + timeout
+            }
+            return resultado
+        return decorated_function
+    return decorator
+
+def iniciar_limpeza_automatica(intervalo=300):  # 300 segundos = 5 minutos
+    def limpeza_periodica():
+        while True:
+            limpar_cache()
+            threading.Timer(intervalo, limpeza_periodica).start()
+    
+    threading.Timer(intervalo, limpeza_periodica).start()
+
+def remover_duplicatas(respostas):
+    vistas = {}
+    for resposta in respostas:
+        chave = resposta.descricao.strip().lower()
+        if chave not in vistas or resposta.conformidade:
+            vistas[chave] = resposta
+    return list(vistas.values())
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
-CORS(app)  # Habilita CORS para todas as rotas
+CORS(app)
 
-# Configuração do banco de dados
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///instance/site.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'sua_chave_secreta_aqui')
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+
+# Inicialize o db com o app
+db.init_app(app)
 
 # Configuração para upload de arquivos
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'txt', 'jpg', 'jpeg', 'png', 'gif'}
@@ -84,10 +136,17 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
-# Inicialize o db com o app
-db.init_app(app)
-
 migrate = Migrate(app, db)
+
+def setup_database():
+    logger.info("Iniciando setup do banco de dados...")
+    try:
+        with app.app_context():
+            db.create_all()
+        logger.info("Banco de dados configurado com sucesso!")
+    except Exception as e:
+        logger.error(f"Erro ao configurar o banco de dados: {str(e)}")
+        raise
 
 def apply_migrations():
     with app.app_context():
@@ -140,24 +199,28 @@ def register():
 @login_required
 @check_session_timeout
 def index():
-    print(f"Current user: {current_user.name}")  # Adicione esta linha
-    menu_items = [
-        {"icon": "📊", "text": "Dashboard", "url": url_for('dashboard')},
-        {"icon": "👥", "text": "Clientes", "url": url_for('clientes')},
-        {"icon": "📝", "text": "Planos de Ação", "url": "#"},
-        {"icon": "📎", "text": "Documentos", "url": url_for('documentos')},
-        {"icon": "📋", "text": "Cardápios", "url": "#"},
-        {"icon": "🌡️", "text": "Temperaturas", "url": "#"},
-        {"icon": "📊", "text": "Relatórios", "url": url_for('relatorios')},
-        {"icon": "✅", "text": "Checklists", "url": url_for('checklists')},
-        {"icon": "📊", "text": "Avaliações", "url": "#"},
-        {"icon": "💬", "text": "Atendimentos", "url": "#"},
-        {"icon": "📄", "text": "Laudos", "url": "#"},
-        {"icon": "❓", "text": "Ajuda", "url": "#"},
-        {"icon": "📦", "text": "Estoque", "url": url_for('estoque')},
-        {"icon": "🧪", "text": "Coleta de Amostras", "url": url_for('coleta_amostras.coleta_amostras')}
-    ]
-    return render_template('index.html', menu_items=menu_items, current_user=current_user)
+    try:
+        logger.debug(f"Current user: {current_user.name}")
+        menu_items = [
+            {"icon": "📊", "text": "Dashboard", "url": url_for('dashboard')},
+            {"icon": "👥", "text": "Clientes", "url": url_for('clientes')},
+            {"icon": "📝", "text": "Planos de Ação", "url": "#"},
+            {"icon": "📎", "text": "Documentos", "url": url_for('documentos')},
+            {"icon": "📋", "text": "Cardápios", "url": "#"},
+            {"icon": "🌡️", "text": "Temperaturas", "url": "#"},
+            {"icon": "📊", "text": "Relatórios", "url": url_for('relatorios')},
+            {"icon": "✅", "text": "Checklists", "url": url_for('checklists')},
+            {"icon": "📊", "text": "Avaliações", "url": "#"},
+            {"icon": "💬", "text": "Atendimentos", "url": "#"},
+            {"icon": "📄", "text": "Laudos", "url": "#"},
+            {"icon": "❓", "text": "Ajuda", "url": "#"},
+            {"icon": "📦", "text": "Estoque", "url": url_for('estoque')},
+            {"icon": "🧪", "text": "Coleta de Amostras", "url": url_for('coleta_amostras.coleta_amostras')}
+        ]
+        return render_template('index.html', menu_items=menu_items, current_user=current_user)
+    except Exception as e:
+        logger.error(f"Erro na rota index: {str(e)}")
+        return "Ocorreu um erro interno", 500
 
 @app.route('/logout')
 @login_required
@@ -745,13 +808,17 @@ if __name__ == '__main__':
     iniciar_limpeza_automatica()
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()  # Cria as tabelas no banco de dados se não existirem
-    
-    # Configuração para o Google Cloud Run
-    if os.environ.get('GOOGLE_CLOUD_RUN', 'False') == 'True':
-        port = int(os.environ.get('PORT', 8080))
-        app.run(host='0.0.0.0', port=port)
-    else:
-        # Configuração para desenvolvimento local
-        app.run(host='0.0.0.0', port=8080, debug=True, use_reloader=True)
+    try:
+        logger.info("Iniciando o aplicativo...")
+        with app.app_context():
+            setup_database()
+        logger.info("Configuração do banco de dados concluída.")
+        
+        if os.getenv('GOOGLE_CLOUD_RUN', 'False').lower() == 'true':
+            port = int(os.getenv('PORT', 8080))
+            app.run(host='0.0.0.0', port=port)
+        else:
+            app.run(host='0.0.0.0', port=8080, debug=True)
+    except Exception as e:
+        logger.error(f"Erro ao iniciar o aplicativo: {str(e)}")
+        logger.error(traceback.format_exc())

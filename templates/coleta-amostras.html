@@ -33,9 +33,43 @@
                 <button id="registrosButton" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">
                     Registros
                 </button>
+                <button id="consultarRegistrosButton" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded ml-2">
+                    Consultar Registros
+                </button>
             </div>
             <div id="formContainer" class="mt-4 hidden">
                 <form id="registroForm" action="{{ url_for('coleta_amostras.submit_registros') }}" method="post" enctype="multipart/form-data" onsubmit="return validateForm()">
+                    <!-- Novo cabeçalho -->
+                    <div class="mb-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="dataHora" class="block text-gray-700">DATA E HORA </label>
+                                <input type="text" id="dataHora" name="dataHora" class="w-full border border-gray-300 p-2 rounded" readonly>
+                            </div>
+                            <div>
+                                <label for="tipoRefeicao" class="block text-gray-700">Tipo de Refeição</label>
+                                <select id="tipoRefeicao" name="tipoRefeicao" class="w-full border border-gray-300 p-2 rounded">
+                                    <option value="cafe">Café da Manhã</option>
+                                    <option value="almoco">Almoço</option>
+                                    <option value="jantar">Jantar</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="nutricionista" class="block text-gray-700">Nutricionista</label>
+                                <input type="text" id="nutricionista" name="nutricionista" class="w-full border border-gray-300 p-2 rounded" required>
+                            </div>
+                            <div>
+                                <label for="crn" class="block text-gray-700">CRN</label>
+                                <input type="text" id="crn" name="crn" class="w-full border border-gray-300 p-2 rounded" required>
+                            </div>
+                            <div class="col-span-2">
+                                <label for="observacoes" class="block text-gray-700">Observações</label>
+                                <textarea id="observacoes" name="observacoes" class="w-full border border-gray-300 p-2 rounded"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Fim do novo cabeçalho -->
+                    
                     <table class="w-full border-collapse">
                         <thead>
                             <tr>
@@ -78,45 +112,12 @@
     <script>
         document.getElementById('registrosButton').addEventListener('click', function() {
             document.getElementById('formContainer').classList.toggle('hidden');
+            document.getElementById('dataHora').value = new Date().toLocaleString('pt-BR');
         });
-
-        function addRow() {
-            const tableBody = document.getElementById('registroTableBody');
-            const newRow = document.createElement('tr');
-            newRow.innerHTML = `
-                <td class="border p-2">
-                    <input type="text" name="item[]" class="w-full border border-gray-300 p-2 rounded" required oninput="this.value = this.value.toUpperCase()">
-                </td>
-                <td class="border p-2">
-                    <input type="file" name="anexo[]" accept="image/*" class="w-full border border-gray-300 p-2 rounded" required>
-                </td>
-                <td class="border p-2">
-                    <input type="datetime-local" name="data_coleta[]" class="w-full border border-gray-300 p-2 rounded" required>
-                </td>
-                <td class="border p-2 text-center">
-                    <button type="button" class="bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-2 rounded" onclick="removeRow(this)">
-                        Remover
-                    </button>
-                </td>
-            `;
-            tableBody.appendChild(newRow);
-            monitorRow(newRow);
-        }
 
         function removeRow(button) {
             const row = button.parentElement.parentElement;
             row.remove();
-        }
-
-        function monitorRow(row) {
-            const inputs = row.querySelectorAll('input');
-            inputs.forEach(input => {
-                input.addEventListener('change', () => {
-                    if (Array.from(inputs).every(input => input.value)) {
-                        addRow();
-                    }
-                });
-            });
         }
 
         function validateForm() {
@@ -133,9 +134,6 @@
             });
             return valid;
         }
-
-        // Inicializa a primeira linha
-        monitorRow(document.querySelector('#registroTableBody tr'));
     </script>
     <script>
         function previewImage(input) {
@@ -150,6 +148,11 @@
                 reader.readAsDataURL(file);
             }
         }
+    </script>
+    <script>
+        document.getElementById('consultarRegistrosButton').addEventListener('click', function() {
+            window.location.href = "{{ url_for('coleta_amostras.consultar_registros') }}";
+        });
     </script>
 </body>
 </html>
