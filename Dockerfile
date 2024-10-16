@@ -42,4 +42,6 @@ ENV PORT=8080
 ENV GOOGLE_CLOUD_RUN=True
 
 # Comando para rodar a aplicação
-CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 main:app
+# Timeout ajustado para evitar que PDFs grandes causem travamento
+# O número de workers e threads foi ajustado para melhorar a geração de PDFs
+CMD exec gunicorn --bind :$PORT --workers 2 --threads 8 --timeout 120 main:app
