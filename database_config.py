@@ -15,6 +15,7 @@ DB_PASSWORD = os.getenv('DB_PASSWORD')
 DB_HOST = os.getenv('DB_HOST')
 DB_NAME = os.getenv('DB_NAME')
 
+logger.debug(f"DB_NAME: {DB_NAME}")
 logger.debug(f"DB_USER: {DB_USER}")
 logger.debug(f"DB_HOST: {DB_HOST}")
 logger.debug(f"DB_NAME: {DB_NAME}")

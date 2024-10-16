@@ -1,4 +1,10 @@
+import sys
 import os
+
+# Adicione o diretório atual ao PYTHONPATH
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, current_dir)
+
 import logging
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file, make_response, send_from_directory, abort, current_app
 from flask_sqlalchemy import SQLAlchemy
@@ -23,10 +29,9 @@ from datetime import datetime, timedelta
 import threading
 from coleta_amostras import coleta_amostras_bp
 from database_config import DATABASE_URL, ssl_args
-
 # No início do arquivo, após as importações
 load_dotenv()  # Isso deve estar no início do arquivo, após as importações
-
+# Configuração do logging
 # Configuração do logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)

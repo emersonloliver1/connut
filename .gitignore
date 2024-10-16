@@ -7,6 +7,10 @@ env/
 *.pyc
 __pycache__/
 
+# Arquivos de ambiente
+.env
+.env.*
+
 # Diretório de uploads
 uploads/
 
