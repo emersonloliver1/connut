@@ -804,6 +804,33 @@ def iniciar_limpeza_automatica(intervalo=300):  # 300 segundos = 5 minutos
 
 app.register_blueprint(coleta_amostras_bp)
 
+@app.route('/upload_anexo', methods=['POST'])
+@login_required
+def upload_anexo():
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'message': 'Nenhum arquivo enviado'}), 400
+    
+    file = request.files['file']
+    secao_index = request.form.get('secao_index')
+    item_index = request.form.get('item_index')
+    checklist_type = request.form.get('checklist_type')
+    
+    if file.filename == '':
+        return jsonify({'success': False, 'message': 'Nenhum arquivo selecionado'}), 400
+    
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(file_path)
+        
+        # Aqui você pode salvar a informação do anexo no banco de dados se necessário
+        # Por exemplo, você pode criar uma nova tabela para armazenar os anexos
+        # ou adicionar uma coluna na tabela ChecklistResposta
+        
+        return jsonify({'success': True, 'message': 'Anexo enviado com sucesso', 'filename': filename}), 200
+    
+    return jsonify({'success': False, 'message': 'Tipo de arquivo não permitido'}), 400
+
 if __name__ == '__main__':
     iniciar_limpeza_automatica()
 
@@ -814,11 +841,8 @@ if __name__ == '__main__':
             setup_database()
         logger.info("Configuração do banco de dados concluída.")
         
-        if os.getenv('GOOGLE_CLOUD_RUN', 'False').lower() == 'true':
-            port = int(os.getenv('PORT', 8080))
-            app.run(host='0.0.0.0', port=port)
-        else:
-            app.run(host='0.0.0.0', port=8080, debug=True)
+        port = int(os.getenv('PORT', 8080))
+        app.run(host='0.0.0.0', port=port)
     except Exception as e:
         logger.error(f"Erro ao iniciar o aplicativo: {str(e)}")
         logger.error(traceback.format_exc())

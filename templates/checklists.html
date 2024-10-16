@@ -239,12 +239,12 @@
         function gerarQuestoes(questoes, container) {
             container.innerHTML = ''; // Limpa questões anteriores
 
-            questoes.forEach(secao => {
+            questoes.forEach((secao, secaoIndex) => {
                 const secaoElement = document.createElement('div');
                 secaoElement.className = 'mb-4';
                 secaoElement.innerHTML = `<h3 class="text-xl font-bold mb-2">${secao.titulo}</h3>`;
 
-                secao.itens.forEach(item => {
+                secao.itens.forEach((item, itemIndex) => {
                     const questao = document.createElement('div');
                     questao.className = 'mb-2 p-3 rounded';
                     questao.innerHTML = `
@@ -260,33 +260,51 @@
                                     <option value="NA">N/A</option>
                                 </select>
                             </div>
-                            <div id="comentario-${item.id}" class="mt-1 p-1 rounded font-bold text-black"></div>
+                            <div id="comentario-${secaoIndex}-${itemIndex}" class="mt-1 p-1 rounded font-bold text-black"></div>
                             <textarea class="mt-1 w-full p-2 border rounded" placeholder="Observações..."></textarea>
                             <div class="mt-1">
-                                <input type="file" id="anexo-${item.id}" class="hidden" accept="image/*,application/pdf">
-                                <label for="anexo-${item.id}" class="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded inline-block">
+                                <input type="file" id="anexo-${secaoIndex}-${itemIndex}" class="hidden" accept="image/*,application/pdf" onchange="uploadAnexo(${secaoIndex}, ${itemIndex}, this)">
+                                <label for="anexo-${secaoIndex}-${itemIndex}" class="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded inline-block">
                                     Adicionar Anexo
                                 </label>
-                                <span id="nome-arquivo-${item.id}" class="ml-2"></span>
+                                <span id="nome-arquivo-${secaoIndex}-${itemIndex}" class="ml-2"></span>
                             </div>
                         </div>
                     `;
                     secaoElement.appendChild(questao);
-
-                    // Adiciona evento para exibir o nome do arquivo selecionado
-                    const inputAnexo = questao.querySelector('input[type="file"]');
-                    const spanNomeArquivo = questao.querySelector(`#nome-arquivo-${item.id}`);
-                    inputAnexo.addEventListener('change', function(e) {
-                        if (this.files && this.files[0]) {
-                            spanNomeArquivo.textContent = this.files[0].name;
-                        } else {
-                            spanNomeArquivo.textContent = '';
-                        }
-                    });
                 });
 
                 container.appendChild(secaoElement);
             });
+        }
+
+        function uploadAnexo(secaoIndex, itemIndex, inputElement) {
+            const file = inputElement.files[0];
+            if (file) {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('secao_index', secaoIndex);
+                formData.append('item_index', itemIndex);
+                formData.append('checklist_type', checklistType);
+
+                fetch('/upload_anexo', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById(`nome-arquivo-${secaoIndex}-${itemIndex}`).textContent = file.name;
+                        alert('Anexo enviado com sucesso!');
+                    } else {
+                        alert('Erro ao enviar anexo: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    alert('Erro ao enviar anexo');
+                });
+            }
         }
 
         function atualizarConformidade(select) {
