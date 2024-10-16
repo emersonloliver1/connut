@@ -170,12 +170,25 @@ def login():
         email = request.form.get('email')
         password = request.form.get('password')
         user = User.query.filter_by(email=email).first()
-        if user and check_password_hash(user.password, password):
-            login_user(user)
-            next_page = request.args.get('next')
-            return redirect(next_page or url_for('index'))
+        if user:
+            if user.password.startswith('pbkdf2:sha256:'):
+                # Senha já está no formato correto
+                if check_password_hash(user.password, password):
+                    login_user(user)
+                    next_page = request.args.get('next')
+                    return redirect(next_page or url_for('index'))
+            else:
+                # Senha está em formato antigo, vamos verificar e atualizar
+                if user.password == password:  # Assumindo que a senha antiga era armazenada em texto simples
+                    # Atualizar para o novo formato de hash
+                    user.password = generate_password_hash(password, method='pbkdf2:sha256')
+                    db.session.commit()
+                    login_user(user)
+                    next_page = request.args.get('next')
+                    return redirect(next_page or url_for('index'))
+            flash('Senha incorreta. Por favor, tente novamente.')
         else:
-            flash('Login inválido. Por favor, tente novamente.')
+            flash('Email não encontrado. Por favor, tente novamente.')
     return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -185,14 +198,15 @@ def register():
         email = request.form.get('email')
         password = request.form.get('password')
         crn = request.form.get('crn')
-        user = User.query.filter_by(email=email).first()
-        if user:
-            flash('Email já existe. Por favor, use outro email.')
-        else:
-            new_user = User(name=name, email=email, password=generate_password_hash(password, method='sha256'), crn=crn)
-            db.session.add(new_user)
-            db.session.commit()
-            return redirect(url_for('login'))
+        
+        hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
+        
+        new_user = User(name=name, email=email, password=hashed_password, crn=crn)
+        db.session.add(new_user)
+        db.session.commit()
+        
+        flash('Registro bem-sucedido! Por favor, faça login.')
+        return redirect(url_for('login'))
     return render_template('register.html')
 
 @app.route('/')
@@ -830,6 +844,16 @@ def upload_anexo():
         return jsonify({'success': True, 'message': 'Anexo enviado com sucesso', 'filename': filename}), 200
     
     return jsonify({'success': False, 'message': 'Tipo de arquivo não permitido'}), 400
+
+@app.route('/update_all_passwords', methods=['GET'])
+def update_all_passwords():
+    users = User.query.all()
+    for user in users:
+        if not user.password.startswith('pbkdf2:sha256:'):
+            # Assumindo que a senha antiga era armazenada em texto simples
+            user.password = generate_password_hash(user.password, method='pbkdf2:sha256')
+    db.session.commit()
+    return 'Todas as senhas foram atualizadas para o novo formato.'
 
 if __name__ == '__main__':
     iniciar_limpeza_automatica()

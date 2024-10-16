@@ -1,5 +1,5 @@
 # Use uma imagem base oficial do Python
-FROM python:3.9-slim-buster
+FROM python:3.11-slim-bullseye
 
 # Define o diretório de trabalho no container
 WORKDIR /app
@@ -23,7 +23,7 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 
 # Instala as dependências Python
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt -v
 
 # Copia o resto do código da aplicação
 COPY . .
