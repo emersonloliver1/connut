@@ -1,4 +1,49 @@
+# Ambientes virtuais
 venv/
+env/
+.venv/
+
+# Arquivos Python compilados
 *.pyc
+__pycache__/
+
+# Arquivos de ambiente
 .env
+.env.*
+
+# Diretório de uploads
 uploads/
+
+# Logs
+*.log
+
+# Arquivos de banco de dados SQLite (se estiver usando)
+*.sqlite
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+
+# Diretórios e arquivos de IDEs/editores
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Arquivos de cache
+.cache/
+
+# Arquivos de distribuição
+dist/
+build/
+*.egg-info/
+
+# Arquivos de teste de cobertura
+.coverage
+htmlcov/
+
+# Arquivos temporários
+*.tmp
+*.bak
+*.swp
+*~
