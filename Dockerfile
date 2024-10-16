@@ -39,4 +39,4 @@ ENV PORT=8080
 ENV GOOGLE_CLOUD_RUN=True
 
 # Comando para rodar a aplicação
-CMD ["python", "main.py"]
+CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 main:app
