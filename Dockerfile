@@ -25,6 +25,9 @@ RUN apt-get update && apt-get install -y \
     libopenjp2-7-dev \
     default-libmysqlclient-dev \
     pkg-config \
+    libcairo2-dev \
+    libgirepository1.0-dev \
+    libmariadb-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copia os arquivos de requisitos primeiro para aproveitar o cache do Docker
