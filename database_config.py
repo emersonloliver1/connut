@@ -19,8 +19,11 @@ logger.debug(f"DB_USER: {DB_USER}")
 logger.debug(f"DB_HOST: {DB_HOST}")
 logger.debug(f"DB_NAME: {DB_NAME}")
 
+if DB_PASSWORD is None:
+    raise ValueError("DB_PASSWORD não está definido no arquivo .env")
+
 # String de conexão para o MySQL
-PASSWORD_ENCODED = urllib.parse.quote_plus(DB_PASSWORD)
+PASSWORD_ENCODED = urllib.parse.quote_plus(DB_PASSWORD.encode('utf-8'))
 DATABASE_URL = f"mysql+pymysql://{DB_USER}:{PASSWORD_ENCODED}@{DB_HOST}/{DB_NAME}?connect_timeout=30"
 
 logger.debug(f"DATABASE_URL (com senha oculta): {DATABASE_URL.replace(PASSWORD_ENCODED, '********')}")
