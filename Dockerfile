@@ -15,6 +15,8 @@ RUN apt-get update && apt-get install -y \
     libffi-dev \
     shared-mime-info \
     libpq-dev \
+    default-libmysqlclient-dev \
+    mysql-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Copia os arquivos de requisitos primeiro para aproveitar o cache do Docker
