@@ -749,6 +749,9 @@ def exportar_pdf(cliente_id, checklist_id):
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
+#tamanho máximo upload
+app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024  # 200MB
+
 @app.route('/estoque')
 @login_required
 @check_session_timeout
