@@ -20,6 +20,9 @@ mysqlclient==2.2.0
 sqlalchemy-utils==0.41.1
 pytz==2023.3
 requests==2.31.0
+Flask-Mail==0.10.0
+requests==2.31.0
+google-cloud-storage==2.18.2
 
 
 

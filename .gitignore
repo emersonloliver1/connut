@@ -47,3 +47,6 @@ htmlcov/
 *.bak
 *.swp
 *~
+
+# Supabase
+.supabase/

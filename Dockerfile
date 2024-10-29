@@ -8,33 +8,14 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     build-essential \
     python3-dev \
-    python3-pip \
-    python3-setuptools \
-    python3-wheel \
-    python3-cffi \
-    libcairo2 \
-    libpango-1.0-0 \
-    libpangocairo-1.0-0 \
-    libgdk-pixbuf2.0-0 \
-    libffi-dev \
-    shared-mime-info \
-    libpango-1.0-0 \
-    libharfbuzz0b \
-    libpangoft2-1.0-0 \
-    libjpeg-dev \
-    libopenjp2-7-dev \
-    default-libmysqlclient-dev \
-    pkg-config \
-    libcairo2-dev \
-    libgirepository1.0-dev \
-    libmariadb-dev \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copia os arquivos de requisitos primeiro para aproveitar o cache do Docker
+# Copia os arquivos de requisitos primeiro
 COPY requirements.txt .
 
 # Instala as dependências Python
-RUN pip install --no-cache-dir -r requirements.txt -v
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copia o resto do código da aplicação
 COPY . .
@@ -49,9 +30,6 @@ EXPOSE 8080
 ENV FLASK_APP=main.py
 ENV FLASK_RUN_HOST=0.0.0.0
 ENV PORT=8080
-ENV GOOGLE_CLOUD_RUN=True
 
 # Comando para rodar a aplicação
-# Timeout ajustado para evitar que PDFs grandes causem travamento
-# O número de workers e threads foi ajustado para melhorar a geração de PDFs
 CMD exec gunicorn --bind :$PORT --workers 2 --threads 8 --timeout 120 main:app

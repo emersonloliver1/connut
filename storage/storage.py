@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 import json
 import base64
 import os
+from supabase import create_client
+from supabase_config import supabase
 
 class DocumentStorage(ABC):
     @abstractmethod
@@ -52,20 +54,32 @@ class LocalJSONStorage(DocumentStorage):
     def get(self, doc_id):
         return self.load(doc_id)
 
-# Futura implementação para Google Cloud Storage
-class GoogleCloudStorage(DocumentStorage):
-    def __init__(self, bucket_name):
+class SupabaseStorage:
+    def __init__(self, bucket_name='documentos'):
         self.bucket_name = bucket_name
-        # Inicializar cliente do Google Cloud Storage aqui
 
-    def save(self, doc_id, content):
-        # Implementar lógica de upload para o Google Cloud Storage
-        pass
+    def save(self, file_path, file_content):
+        try:
+            supabase.storage.from_(self.bucket_name).upload(
+                file_path,
+                file_content
+            )
+            return True
+        except Exception as e:
+            print(f"Erro ao salvar arquivo: {str(e)}")
+            return False
 
-    def get(self, doc_id):
-        # Implementar lógica de download do Google Cloud Storage
-        pass
+    def get(self, file_path):
+        try:
+            return supabase.storage.from_(self.bucket_name).download(file_path)
+        except Exception as e:
+            print(f"Erro ao recuperar arquivo: {str(e)}")
+            return None
 
-    def delete(self, doc_id):
-        # Implementar lógica de exclusão do Google Cloud Storage
-        pass
+    def delete(self, file_path):
+        try:
+            supabase.storage.from_(self.bucket_name).remove([file_path])
+            return True
+        except Exception as e:
+            print(f"Erro ao excluir arquivo: {str(e)}")
+            return False

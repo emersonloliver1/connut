@@ -62,7 +62,7 @@ class ChecklistResposta(db.Model):
     descricao = Column(String(500), nullable=False)
     conformidade = Column(String(50))
     observacoes = Column(Text)
-    anexo = Column(String(255))
+    anexo = Column(String(255))  # Agora armazena a URL do anexo no GCS
 
     __table_args__ = (UniqueConstraint('checklist_id', 'questao_id', name='uq_checklist_questao'),)
 

@@ -1,12 +1,11 @@
 import sys
 import os
-
 # Adicione o diretório atual ao PYTHONPATH
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, current_dir)
 
 import logging
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file, make_response, send_from_directory, abort, current_app
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file, make_response, send_from_directory, abort, current_app, render_template_string
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -29,6 +28,10 @@ from datetime import datetime, timedelta
 import threading
 from coleta_amostras import coleta_amostras_bp
 from database_config import DATABASE_URL, ssl_args
+from reset_password import init_reset_password
+from flask_mail import Mail
+import requests
+
 # No início do arquivo, após as importações
 load_dotenv()  # Isso deve estar no início do arquivo, após as importações
 # Configuração do logging
@@ -128,18 +131,20 @@ CORS(app)
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'emersonfilho953@gmail.com'
+app.config['MAIL_PASSWORD'] = 'xsvw qxib kjyo tkdg'
+app.config['MAIL_DEFAULT_SENDER'] = 'emersonfilho953@gmail.com'
+
+mail = Mail(app)
 
 # Inicialize o db com o app
 db.init_app(app)
 
 # Configuração para upload de arquivos
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'txt', 'jpg', 'jpeg', 'png', 'gif'}
-UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-# Certifique-se de que a pasta uploads existe
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
 
 migrate = Migrate(app, db)
 
@@ -168,6 +173,9 @@ def load_user(user_id):
 document_storage = LocalJSONStorage()
 
 init_session_timeout(app)
+
+# Adicione esta linha para debug
+print(f"Bucket configurado: {bucket.name}")
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -215,6 +223,11 @@ def register():
     return render_template('register.html')
 
 @app.route('/')
+def landing():
+    return render_template('landingpg.html')
+
+# Mova a rota existente do index para um novo caminho
+@app.route('/dashboard')
 @login_required
 @check_session_timeout
 def index():
@@ -227,7 +240,7 @@ def index():
             {"icon": "📎", "text": "Documentos", "url": url_for('documentos')},
             {"icon": "📋", "text": "Cardápios", "url": "#"},
             {"icon": "🌡️", "text": "Temperaturas", "url": "#"},
-            {"icon": "📊", "text": "Relatórios", "url": url_for('relatorios')},
+            {"icon": "📊", "text": "Relatórios", "url": url_for('relatorios')},  # Usando a nova rota
             {"icon": "✅", "text": "Checklists", "url": url_for('checklists')},
             {"icon": "📊", "text": "Avaliações", "url": "#"},
             {"icon": "💬", "text": "Atendimentos", "url": "#"},
@@ -508,7 +521,7 @@ def salvar_checklist():
             area_observada=json_data['areaObservada'],
             status='concluido',
             porcentagem_conformidade=float(json_data['porcentagemConformidade']),
-            tipo_checklist='higienico_sanitario',
+            tipo_checklist='higienico-sanitario',
             crn=json_data.get('crn', '')
         )
         db.session.add(novo_checklist)
@@ -520,27 +533,30 @@ def salvar_checklist():
                 questao_id=resposta['id'],
                 descricao=resposta['descricao'],
                 conformidade=resposta['conformidade'],
-                observacoes=resposta.get('observacoes', '')
+                observacoes=resposta['observacoes']
             )
             
             # Processa o anexo, se houver
-            anexo_key = f"anexo_{resposta['id']}"
-            if anexo_key in request.files:
-                arquivo = request.files[anexo_key]
+            if f"anexo_{resposta['id']}" in request.files:
+                arquivo = request.files[f"anexo_{resposta['id']}"]
                 if arquivo and arquivo.filename != '':
-                    filename = secure_filename(arquivo.filename)
-                    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                    arquivo.save(file_path)
+                    filename = f"{novo_checklist.id}_{resposta['id']}_{secure_filename(arquivo.filename)}"
+                    blob = bucket.blob(filename)
+                    blob.upload_from_string(
+                        arquivo.read(),
+                        content_type=arquivo.content_type
+                    )
                     nova_resposta.anexo = filename
-                    print(f"Anexo salvo: {file_path}")  # Log para debug
+                    print(f"Anexo salvo no GCS: {filename}")  # Log para debug
             
             db.session.add(nova_resposta)
         
         db.session.commit()
-        return jsonify({"message": "Checklist salvo com sucesso!", "id": novo_checklist.id}), 200
+        return jsonify({'success': True, 'message': 'Checklist salvo com sucesso!'})
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        app.logger.error(f"Erro ao salvar checklist: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 # Remova ou comente a função salvar_checklist duplicada
 
@@ -627,11 +643,14 @@ def salvar_checklist_rdc216():
             if f"anexo_{resposta['id']}" in request.files:
                 arquivo = request.files[f"anexo_{resposta['id']}"]
                 if arquivo and arquivo.filename != '':
-                    filename = secure_filename(arquivo.filename)
-                    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                    arquivo.save(file_path)
+                    filename = f"{novo_checklist.id}_{resposta['id']}_{secure_filename(arquivo.filename)}"
+                    blob = bucket.blob(filename)
+                    blob.upload_from_string(
+                        arquivo.read(),
+                        content_type=arquivo.content_type
+                    )
                     nova_resposta.anexo = filename
-                    print(f"Anexo salvo: {file_path}")  # Log para debug
+                    print(f"Anexo salvo no GCS: {filename}")  # Log para debug
             
             db.session.add(nova_resposta)
         
@@ -663,91 +682,6 @@ def check_db():
             'status': 'Error',
             'message': f'Erro ao conectar com o banco de dados: {str(e)}'
         }), 500
-
-@app.route('/relatorios')
-@login_required
-@check_session_timeout
-def relatorios():
-    cliente_id = request.args.get('cliente', type=int)
-    data_inicio = request.args.get('data_inicio')
-    data_fim = request.args.get('data_fim')
-
-    query = Checklist.query
-
-    if cliente_id:
-        query = query.filter(Checklist.cliente_id == cliente_id)
-    if data_inicio:
-        query = query.filter(Checklist.data_inspecao >= datetime.strptime(data_inicio, '%Y-%m-%d').date())
-    if data_fim:
-        query = query.filter(Checklist.data_inspecao <= datetime.strptime(data_fim, '%Y-%m-%d').date())
-
-    relatorios = query.order_by(Checklist.data_inspecao.desc()).all()
-    clientes = Cliente.query.all()
-
-    return render_template('relatorios.html', relatorios=relatorios, clientes=clientes)
-
-import base64
-
-@app.route('/exportar_pdf/<int:cliente_id>/<int:checklist_id>')
-@login_required
-@check_session_timeout
-@cache_com_timeout(timedelta(minutes=5))
-def exportar_pdf(cliente_id, checklist_id):
-    cliente = Cliente.query.get_or_404(cliente_id)
-    checklist = Checklist.query.get_or_404(checklist_id)
-    
-    respostas = ChecklistResposta.query.filter_by(checklist_id=checklist.id).all()
-    respostas_unicas = remover_duplicatas(respostas)
-    
-    respostas_organizadas = []
-    for resposta in respostas_unicas:
-        if resposta.conformidade and resposta.conformidade != '':
-            anexo_data = None
-            if resposta.anexo:
-                anexo_path = os.path.join(app.config['UPLOAD_FOLDER'], resposta.anexo)
-                if os.path.exists(anexo_path):
-                    with open(anexo_path, "rb") as image_file:
-                        anexo_data = base64.b64encode(image_file.read()).decode('utf-8')
-                    print(f"Anexo encontrado: {anexo_path}")  # Log para debug
-                else:
-                    print(f"Arquivo não encontrado: {anexo_path}")  # Log para debug
-            
-            respostas_organizadas.append({
-                "descricao": resposta.descricao,
-                "conformidade": resposta.conformidade,
-                "observacoes": resposta.observacoes,
-                "anexo": anexo_data
-            })
-
-    print(f"Total de respostas organizadas: {len(respostas_organizadas)}")
-
-    relatorio = {
-        "nome_cliente": cliente.nome,
-        "tipo_checklist": checklist.tipo_checklist,
-        "data_inspecao": checklist.data_inspecao,
-        "area_observada": checklist.area_observada,
-        "avaliador": checklist.avaliador,
-        "crn": checklist.crn,
-        "porcentagem_conformidade": checklist.porcentagem_conformidade,
-        "respostas": respostas_organizadas
-    }
-
-    rendered = render_template('relatorio_pdf.html', relatorio=relatorio)
-    
-    # Usando WeasyPrint para gerar o PDF
-    html = HTML(string=rendered)
-    pdf = html.write_pdf()
-
-    response = make_response(pdf)
-    response.headers['Content-Type'] = 'application/pdf'
-    response.headers['Content-Disposition'] = f'inline; filename=relatorio_{cliente.nome}_{checklist.data_inspecao}.pdf'
-
-    return response
-
-# Adicione esta rota para servir os arquivos de upload
-@app.route('/uploads/<filename>')
-def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 @app.route('/estoque')
 @login_required
@@ -839,12 +773,11 @@ def upload_anexo():
     
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(file_path)
-        
-        # Aqui você pode salvar a informação do anexo no banco de dados se necessário
-        # Por exemplo, você pode criar uma nova tabela para armazenar os anexos
-        # ou adicionar uma coluna na tabela ChecklistResposta
+        blob = bucket.blob(filename)
+        blob.upload_from_string(
+            file.read(),
+            content_type=file.content_type
+        )
         
         return jsonify({'success': True, 'message': 'Anexo enviado com sucesso', 'filename': filename}), 200
     
@@ -859,6 +792,97 @@ def update_all_passwords():
             user.password = generate_password_hash(user.password, method='pbkdf2:sha256')
     db.session.commit()
     return 'Todas as senhas foram atualizadas para o novo formato.'
+
+MAILGUN_API_KEY = os.getenv('MAILGUN_API_KEY')
+MAILGUN_DOMAIN = os.getenv('MAILGUN_DOMAIN')
+
+def send_email(to_email, subject, content):
+    return requests.post(
+        f"https://api.mailgun.net/v3/{MAILGUN_DOMAIN}/messages",
+        auth=("api", MAILGUN_API_KEY),
+        data={"from": f"CONNUT <mailgun@{MAILGUN_DOMAIN}>",
+              "to": [to_email],
+              "subject": subject,
+              "html": content})
+
+# Modifique a função reset_password_request para usar send_email
+
+reset_password_bp = init_reset_password(app, send_email)
+app.register_blueprint(reset_password_bp)
+
+def generate_signed_url(blob_name):
+    storage_client = storage.Client()
+    bucket = storage_client.bucket('connut_storage_bucket')
+    blob = bucket.blob(blob_name)
+    
+    url = blob.generate_signed_url(
+        version="v4",
+        expiration=datetime.timedelta(minutes=15),
+        method="GET",
+    )
+    
+    return url
+
+@app.route('/gerar-relatorio/<int:cliente_id>/<int:checklist_id>')
+@login_required
+def gerar_relatorio(cliente_id, checklist_id):
+    cliente = Cliente.query.get_or_404(cliente_id)
+    checklist = Checklist.query.get_or_404(checklist_id)
+    
+    respostas = ChecklistResposta.query.filter_by(checklist_id=checklist.id).all()
+    
+    relatorio = {
+        'nome_cliente': cliente.nome,
+        'data_inspecao': checklist.data_inspecao,
+        'area_observada': checklist.area_observada,
+        'avaliador': checklist.avaliador,
+        'porcentagem_conformidade': checklist.porcentagem_conformidade,
+        'respostas': []
+    }
+    
+    for resposta in respostas:
+        print(f"Anexo original: {resposta.anexo}")  # Log para debug
+        item = {
+            'descricao': resposta.descricao,
+            'conformidade': resposta.conformidade,
+            'observacoes': resposta.observacoes,
+            'anexo': generate_signed_url(resposta.anexo) if resposta.anexo else None
+        }
+        print(f"URL assinada: {item['anexo']}")  # Log para debug
+        relatorio['respostas'].append(item)
+    
+    html = render_template('relatorio_pdf.html', relatorio=relatorio)
+    
+    # Configurar opções do WeasyPrint
+    css = CSS(string='''
+        @page { size: A4; margin: 1cm; }
+        body { font-family: Arial, sans-serif; }
+        img { max-width: 100%; height: auto; }
+    ''')
+    
+    pdf = HTML(string=html).write_pdf(stylesheets=[css])
+    
+    response = make_response(pdf)
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'inline; filename=relatorio_{cliente.nome}_{checklist.data_inspecao}.pdf'
+    
+    return response
+
+print(f"MAILGUN_DOMAIN: {os.getenv('MAILGUN_DOMAIN')}")
+print(f"MAILGUN_API_KEY: {os.getenv('MAILGUN_API_KEY')}")
+
+@app.route('/relatorios')
+@login_required
+@check_session_timeout
+def relatorios():
+    message = """
+    {% extends "base.html" %}
+    {% block content %}
+    <h2>Relatórios</h2>
+    <p>Esta funcionalidade está em desenvolvimento e estará disponível em breve.</p>
+    {% endblock %}
+    """
+    return render_template_string(message)
 
 if __name__ == '__main__':
     iniciar_limpeza_automatica()
@@ -875,3 +899,4 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Erro ao iniciar o aplicativo: {str(e)}")
         logger.error(traceback.format_exc())
+

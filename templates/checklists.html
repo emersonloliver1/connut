@@ -278,32 +278,24 @@
             });
         }
 
-        function uploadAnexo(secaoIndex, itemIndex, inputElement) {
-            const file = inputElement.files[0];
+        function uploadAnexo(secaoIndex, itemIndex, input) {
+            const file = input.files[0];
             if (file) {
-                const formData = new FormData();
-                formData.append('file', file);
-                formData.append('secao_index', secaoIndex);
-                formData.append('item_index', itemIndex);
-                formData.append('checklist_type', checklistType);
-
-                fetch('/upload_anexo', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        document.getElementById(`nome-arquivo-${secaoIndex}-${itemIndex}`).textContent = file.name;
-                        alert('Anexo enviado com sucesso!');
-                    } else {
-                        alert('Erro ao enviar anexo: ' + data.message);
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.className = 'w-full h-auto mt-2';
+                    let container = document.getElementById(`anexo-preview-${secaoIndex}-${itemIndex}`);
+                    if (!container) {
+                        container = document.createElement('div');
+                        container.id = `anexo-preview-${secaoIndex}-${itemIndex}`;
+                        input.parentNode.insertBefore(container, input.nextSibling);
                     }
-                })
-                .catch(error => {
-                    console.error('Erro:', error);
-                    alert('Erro ao enviar anexo');
-                });
+                    container.innerHTML = '';
+                    container.appendChild(img);
+                }
+                reader.readAsDataURL(file);
             }
         }
 
@@ -412,11 +404,13 @@
         }
 
         function salvarChecklist() {
+            console.log("Função salvarChecklist() chamada");  // Log para debug
+            
             const clienteId = document.getElementById('cliente-select')?.value;
             const avaliador = document.getElementById('avaliador')?.value;
             const dataInspecao = document.getElementById('data-inspecao')?.value;
             const areaObservada = document.getElementById('area-observada')?.value;
-            const crn = document.getElementById('crn-higienico')?.value;  // Novo campo CRN
+            const crn = document.getElementById('crn-higienico')?.value;
 
             if (!clienteId || !avaliador || !dataInspecao || !areaObservada) {
                 alert('Por favor, preencha todos os campos obrigatórios.');
@@ -454,11 +448,13 @@
                 avaliador: avaliador,
                 dataInspecao: dataInspecao,
                 areaObservada: areaObservada,
-                crn: crn,  // Incluindo o CRN nos dados do checklist
+                crn: crn,
                 respostas: respostas,
                 porcentagemConformidade: porcentagemConformidade,
                 tipoChecklist: 'higienico-sanitario'
             };
+
+            console.log("Dados do checklist:", dadosChecklist);  // Log para debug
 
             const formData = new FormData();
             formData.append('dados', JSON.stringify(dadosChecklist));
@@ -467,6 +463,7 @@
                 const inputAnexo = questao.querySelector('input[type="file"]');
                 if (inputAnexo && inputAnexo.files.length > 0) {
                     formData.append(`anexo_${index + 1}`, inputAnexo.files[0]);
+                    console.log(`Anexo adicionado para questão ${index + 1}`);  // Log para debug
                 }
             });
 
@@ -476,11 +473,15 @@
             })
             .then(response => response.json())
             .then(data => {
-                console.log('Sucesso:', data);
-                mostrarAvaliacaoDesempenho(porcentagemConformidade);
-                alert('Checklist salvo com sucesso!');
-                localStorage.removeItem('checklistEmProgresso');
-                clearInterval(window.autoSaveInterval);
+                console.log('Resposta do servidor:', data);  // Log para debug
+                if (data.success) {
+                    mostrarAvaliacaoDesempenho(porcentagemConformidade);
+                    alert('Checklist salvo com sucesso!');
+                    localStorage.removeItem('checklistEmProgresso');
+                    clearInterval(window.autoSaveInterval);
+                } else {
+                    throw new Error(data.message);
+                }
             })
             .catch((error) => {
                 console.error('Erro:', error);
