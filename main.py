@@ -683,6 +683,97 @@ def check_db():
             'message': f'Erro ao conectar com o banco de dados: {str(e)}'
         }), 500
 
+<<<<<<< HEAD
+=======
+@app.route('/relatorios')
+@login_required
+@check_session_timeout
+def relatorios():
+    cliente_id = request.args.get('cliente', type=int)
+    data_inicio = request.args.get('data_inicio')
+    data_fim = request.args.get('data_fim')
+
+    query = Checklist.query
+
+    if cliente_id:
+        query = query.filter(Checklist.cliente_id == cliente_id)
+    if data_inicio:
+        query = query.filter(Checklist.data_inspecao >= datetime.strptime(data_inicio, '%Y-%m-%d').date())
+    if data_fim:
+        query = query.filter(Checklist.data_inspecao <= datetime.strptime(data_fim, '%Y-%m-%d').date())
+
+    relatorios = query.order_by(Checklist.data_inspecao.desc()).all()
+    clientes = Cliente.query.all()
+
+    return render_template('relatorios.html', relatorios=relatorios, clientes=clientes)
+
+import base64
+
+@app.route('/exportar_pdf/<int:cliente_id>/<int:checklist_id>')
+@login_required
+@check_session_timeout
+@cache_com_timeout(timedelta(minutes=5))
+def exportar_pdf(cliente_id, checklist_id):
+    cliente = Cliente.query.get_or_404(cliente_id)
+    checklist = Checklist.query.get_or_404(checklist_id)
+    
+    respostas = ChecklistResposta.query.filter_by(checklist_id=checklist.id).all()
+    respostas_unicas = remover_duplicatas(respostas)
+    
+    respostas_organizadas = []
+    for resposta in respostas_unicas:
+        if resposta.conformidade and resposta.conformidade != '':
+            anexo_data = None
+            if resposta.anexo:
+                anexo_path = os.path.join(app.config['UPLOAD_FOLDER'], resposta.anexo)
+                if os.path.exists(anexo_path):
+                    with open(anexo_path, "rb") as image_file:
+                        anexo_data = base64.b64encode(image_file.read()).decode('utf-8')
+                    print(f"Anexo encontrado: {anexo_path}")  # Log para debug
+                else:
+                    print(f"Arquivo não encontrado: {anexo_path}")  # Log para debug
+            
+            respostas_organizadas.append({
+                "descricao": resposta.descricao,
+                "conformidade": resposta.conformidade,
+                "observacoes": resposta.observacoes,
+                "anexo": anexo_data
+            })
+
+    print(f"Total de respostas organizadas: {len(respostas_organizadas)}")
+
+    relatorio = {
+        "nome_cliente": cliente.nome,
+        "tipo_checklist": checklist.tipo_checklist,
+        "data_inspecao": checklist.data_inspecao,
+        "area_observada": checklist.area_observada,
+        "avaliador": checklist.avaliador,
+        "crn": checklist.crn,
+        "porcentagem_conformidade": checklist.porcentagem_conformidade,
+        "respostas": respostas_organizadas
+    }
+
+    rendered = render_template('relatorio_pdf.html', relatorio=relatorio)
+    
+    # Usando WeasyPrint para gerar o PDF
+    html = HTML(string=rendered)
+    pdf = html.write_pdf()
+
+    response = make_response(pdf)
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'inline; filename=relatorio_{cliente.nome}_{checklist.data_inspecao}.pdf'
+
+    return response
+
+# Adicione esta rota para servir os arquivos de upload
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+#tamanho máximo upload
+app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024  # 200MB
+
+>>>>>>> 03f9f2cd84f4351cb2edb316bc5bd77aacb95787
 @app.route('/estoque')
 @login_required
 @check_session_timeout
@@ -899,4 +990,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Erro ao iniciar o aplicativo: {str(e)}")
         logger.error(traceback.format_exc())
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03f9f2cd84f4351cb2edb316bc5bd77aacb95787
