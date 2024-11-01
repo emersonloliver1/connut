@@ -9,6 +9,12 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     python3-dev \
     libpq-dev \
+    libcairo2 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libgdk-pixbuf2.0-0 \
+    shared-mime-info \
+    mime-support \
     && rm -rf /var/lib/apt/lists/*
 
 # Copia os arquivos de requisitos primeiro
@@ -23,13 +29,22 @@ COPY . .
 # Cria a pasta instance se ela não existir
 RUN mkdir -p instance
 
-# Expõe a porta que a aplicação vai usar
-EXPOSE 8080
+# Configurações do Supabase como variáveis de ambiente
+ENV SUPABASE_URL=${SUPABASE_URL}
+ENV SUPABASE_KEY=${SUPABASE_KEY}
+ENV SUPABASE_DB_USER=${SUPABASE_DB_USER}
+ENV SUPABASE_DB_PASSWORD=${SUPABASE_DB_PASSWORD}
+ENV SUPABASE_DB_HOST=${SUPABASE_DB_HOST}
+ENV SUPABASE_DB_NAME=${SUPABASE_DB_NAME}
+ENV SUPABASE_DB_PORT=${SUPABASE_DB_PORT}
 
-# Define as variáveis de ambiente
+# Configurações do Flask
 ENV FLASK_APP=main.py
-ENV FLASK_RUN_HOST=0.0.0.0
+ENV FLASK_ENV=production
 ENV PORT=8080
 
+# Configuração para o Cloud Run
+ENV HOST=0.0.0.0
+
 # Comando para rodar a aplicação
-CMD exec gunicorn --bind :$PORT --workers 2 --threads 8 --timeout 120 main:app
+CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 main:app
