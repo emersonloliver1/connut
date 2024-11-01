@@ -22,5 +22,10 @@ DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NA
 
 logger.debug(f"DATABASE_URL (com senha oculta): {DATABASE_URL.replace(DB_PASSWORD, '********')}")
 
+# Configurações SSL para conexão segura
+ssl_args = {
+    "sslmode": "require"
+}
+
 # Criar a base declarativa
 Base = declarative_base()

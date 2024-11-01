@@ -175,8 +175,6 @@ document_storage = LocalJSONStorage()
 init_session_timeout(app)
 
 # Adicione esta linha para debug
-print(f"Bucket configurado: {bucket.name}")
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -245,7 +243,7 @@ def index():
             {"icon": "📊", "text": "Avaliações", "url": "#"},
             {"icon": "💬", "text": "Atendimentos", "url": "#"},
             {"icon": "📄", "text": "Laudos", "url": "#"},
-            {"icon": "❓", "text": "Ajuda", "url": "#"},
+            {"icon": "💬", "text": "Ajuda", "url": "#"},
             {"icon": "📦", "text": "Estoque", "url": url_for('estoque')},
             {"icon": "🧪", "text": "Coleta de Amostras", "url": url_for('coleta_amostras.coleta_amostras')}
         ]
@@ -683,8 +681,6 @@ def check_db():
             'message': f'Erro ao conectar com o banco de dados: {str(e)}'
         }), 500
 
-<<<<<<< HEAD
-=======
 @app.route('/relatorios')
 @login_required
 @check_session_timeout
@@ -773,7 +769,6 @@ def uploaded_file(filename):
 #tamanho máximo upload
 app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024  # 200MB
 
->>>>>>> 03f9f2cd84f4351cb2edb316bc5bd77aacb95787
 @app.route('/estoque')
 @login_required
 @check_session_timeout
@@ -962,19 +957,6 @@ def gerar_relatorio(cliente_id, checklist_id):
 print(f"MAILGUN_DOMAIN: {os.getenv('MAILGUN_DOMAIN')}")
 print(f"MAILGUN_API_KEY: {os.getenv('MAILGUN_API_KEY')}")
 
-@app.route('/relatorios')
-@login_required
-@check_session_timeout
-def relatorios():
-    message = """
-    {% extends "base.html" %}
-    {% block content %}
-    <h2>Relatórios</h2>
-    <p>Esta funcionalidade está em desenvolvimento e estará disponível em breve.</p>
-    {% endblock %}
-    """
-    return render_template_string(message)
-
 if __name__ == '__main__':
     iniciar_limpeza_automatica()
 
@@ -990,7 +972,3 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Erro ao iniciar o aplicativo: {str(e)}")
         logger.error(traceback.format_exc())
-<<<<<<< HEAD
-
-=======
->>>>>>> 03f9f2cd84f4351cb2edb316bc5bd77aacb95787
