@@ -29,8 +29,6 @@ import threading
 from coleta_amostras import coleta_amostras_bp
 from database_config import DATABASE_URL, ssl_args
 from reset_password import init_reset_password
-from flask_mail import Mail
-import requests
 
 # No início do arquivo, após as importações
 load_dotenv()  # Isso deve estar no início do arquivo, após as importações
@@ -137,8 +135,6 @@ app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USERNAME'] = 'emersonfilho953@gmail.com'
 app.config['MAIL_PASSWORD'] = 'xsvw qxib kjyo tkdg'
 app.config['MAIL_DEFAULT_SENDER'] = 'emersonfilho953@gmail.com'
-
-mail = Mail(app)
 
 # Inicialize o db com o app
 db.init_app(app)
@@ -881,6 +877,11 @@ def update_all_passwords():
 
 MAILGUN_API_KEY = os.getenv('MAILGUN_API_KEY')
 MAILGUN_DOMAIN = os.getenv('MAILGUN_DOMAIN')
+
+# Função stub para substituir o envio de email
+def send_email(to, subject, content):
+    print(f"Email would be sent to {to}: {subject}")
+    return True
 
 # Remova ou comente a linha que define send_email
 # def send_email(to, subject, content):
