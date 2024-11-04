@@ -29,6 +29,7 @@ import threading
 from coleta_amostras import coleta_amostras_bp
 from database_config import DATABASE_URL, ssl_args
 from reset_password import init_reset_password
+from supabase_config import supabase
 
 # No início do arquivo, após as importações
 load_dotenv()  # Isso deve estar no início do arquivo, após as importações
@@ -502,57 +503,30 @@ local_storage = LocalJSONStorage()
 # ... (outras rotas existentes)
 
 @app.route('/salvar-checklist', methods=['POST'])
-@login_required
 def salvar_checklist():
     try:
-        data = request.form
-        json_data = json.loads(data.get('dados'))
+        dados = json.loads(request.form['dados'])
         
-        novo_checklist = Checklist(
-            cliente_id=json_data['clienteId'],
-            avaliador=json_data['avaliador'],
-            data_inspecao=datetime.strptime(json_data['dataInspecao'], '%Y-%m-%d').date(),
-            area_observada=json_data['areaObservada'],
-            status='concluido',
-            porcentagem_conformidade=float(json_data['porcentagemConformidade']),
-            tipo_checklist='higienico-sanitario',
-            crn=json_data.get('crn', '')
+        # Salvar os dados do checklist no banco de dados
+        checklist = Checklist(
+            cliente_id=dados['clienteId'],
+            avaliador=dados['avaliador'],
+            data_inspecao=dados['dataInspecao'],
+            area_observada=dados['areaObservada'],
+            tipo_checklist=dados['tipoChecklist'],
+            porcentagem_conformidade=dados['porcentagemConformidade'],
+            anexos=json.dumps(dados.get('anexos', [])),  # Salvar os caminhos dos anexos
+            respostas=json.dumps(dados['respostas'])
         )
-        db.session.add(novo_checklist)
-        db.session.flush()
         
-        for resposta in json_data['respostas']:
-            nova_resposta = ChecklistResposta(
-                checklist_id=novo_checklist.id,
-                questao_id=resposta['id'],
-                descricao=resposta['descricao'],
-                conformidade=resposta['conformidade'],
-                observacoes=resposta['observacoes']
-            )
-            
-            # Processa o anexo, se houver
-            if f"anexo_{resposta['id']}" in request.files:
-                arquivo = request.files[f"anexo_{resposta['id']}"]
-                if arquivo and arquivo.filename != '':
-                    filename = f"{novo_checklist.id}_{resposta['id']}_{secure_filename(arquivo.filename)}"
-                    blob = bucket.blob(filename)
-                    blob.upload_from_string(
-                        arquivo.read(),
-                        content_type=arquivo.content_type
-                    )
-                    nova_resposta.anexo = filename
-                    print(f"Anexo salvo no GCS: {filename}")  # Log para debug
-            
-            db.session.add(nova_resposta)
-        
+        db.session.add(checklist)
         db.session.commit()
-        return jsonify({'success': True, 'message': 'Checklist salvo com sucesso!'})
+        
+        return jsonify({'success': True, 'message': 'Checklist salvo com sucesso'})
+        
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"Erro ao salvar checklist: {str(e)}")
-        return jsonify({'success': False, 'message': str(e)}), 500
-
-# Remova ou comente a função salvar_checklist duplicada
+        return jsonify({'success': False, 'message': str(e)})
 
 @app.route('/salvar-progresso-checklist', methods=['POST'])
 @login_required
@@ -963,7 +937,7 @@ if __name__ == '__main__':
         logger.info("Configuração do banco de dados concluída.")
         
         port = int(os.getenv('PORT', 8080))
-        app.run(host='0.0.0.0', port=port)
+        app.run(host='0.0.0.0', port=port, debug=True)
     except Exception as e:
         logger.error(f"Erro ao iniciar o aplicativo: {str(e)}")
         logger.error(traceback.format_exc())

@@ -5,6 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Checklists - CONNUT</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Inicializar o cliente Supabase
+            const supabaseUrl = 'https://mradubnvwmxovyjbuknk.supabase.co';
+            const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1yYWR1Ym52d214b3Z5amJ1a25rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzAyMTgyMjksImV4cCI6MjA0NTc5NDIyOX0.0JjrDEMH6hXbDiRcnev2DzdOSwrkdsnjZU2yBV5eyaE';
+            
+            try {
+                window.supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+                console.log('Supabase client initialized successfully');
+            } catch (error) {
+                console.error('Error initializing Supabase client:', error);
+            }
+        });
+    </script>
     <style>
         .conformidade-100 { background-color: #4CAF50; }
         .conformidade-50 { background-color: #FFEB3B; }
@@ -278,24 +293,102 @@
             });
         }
 
-        function uploadAnexo(secaoIndex, itemIndex, input) {
-            const file = input.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const img = document.createElement('img');
-                    img.src = e.target.result;
-                    img.className = 'w-full h-auto mt-2';
-                    let container = document.getElementById(`anexo-preview-${secaoIndex}-${itemIndex}`);
-                    if (!container) {
-                        container = document.createElement('div');
-                        container.id = `anexo-preview-${secaoIndex}-${itemIndex}`;
-                        input.parentNode.insertBefore(container, input.nextSibling);
+        async function uploadAnexo(secaoIndex, itemIndex, input) {
+            if (!window.supabaseClient) {
+                console.error('Cliente Supabase não inicializado');
+                alert('Erro: Cliente Supabase não inicializado');
+                return;
+            }
+
+            const files = input.files;
+            if (!files || files.length === 0) return;
+
+            // Encontrar ou criar o container de anexos
+            let anexosContainer = document.getElementById(`anexos-lista-${secaoIndex}-${itemIndex}`);
+            if (!anexosContainer) {
+                anexosContainer = document.createElement('div');
+                anexosContainer.id = `anexos-lista-${secaoIndex}-${itemIndex}`;
+                anexosContainer.className = 'mt-2 space-y-1';
+                input.parentElement.appendChild(anexosContainer);
+            }
+
+            for (let file of files) {
+                let nomeArquivoSpan = document.createElement('div');
+                try {
+                    nomeArquivoSpan.textContent = `Enviando ${file.name}...`;
+                    nomeArquivoSpan.className = 'text-sm text-gray-600';
+                    anexosContainer.appendChild(nomeArquivoSpan);
+
+                    if (file.size > 5 * 1024 * 1024) {
+                        throw new Error(`Arquivo ${file.name} muito grande. O limite é 5MB.`);
                     }
-                    container.innerHTML = '';
-                    container.appendChild(img);
+
+                    const extensao = file.name.split('.').pop();
+                    const nomeUnico = `${Date.now()}-${Math.random().toString(36).substring(7)}.${extensao}`;
+                    const caminhoArquivo = `checklists/${nomeUnico}`;
+
+                    const { data, error } = await window.supabaseClient.storage
+                        .from('connut_storage')
+                        .upload(caminhoArquivo, file, {
+                            cacheControl: '3600',
+                            upsert: false
+                        });
+
+                    if (error) throw error;
+
+                    const { data: urlData } = window.supabaseClient.storage
+                        .from('connut_storage')
+                        .getPublicUrl(caminhoArquivo);
+
+                    // Criar elemento para o arquivo enviado
+                    const anexoElement = document.createElement('div');
+                    anexoElement.className = 'flex items-center justify-between p-2 border rounded mt-1 bg-gray-50';
+                    anexoElement.innerHTML = `
+                        <span class="text-sm truncate max-w-[200px]">${file.name}</span>
+                        <button onclick="removerAnexo(this, '${caminhoArquivo}')" 
+                                class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-sm ml-2">
+                            Remover
+                        </button>
+                    `;
+                    
+                    // Adicionar informações do arquivo como dados do elemento
+                    anexoElement.dataset.arquivoPath = caminhoArquivo;
+                    anexoElement.dataset.publicUrl = urlData.publicUrl;
+                    
+                    // Substituir o span de "enviando" pelo elemento do arquivo
+                    nomeArquivoSpan.replaceWith(anexoElement);
+
+                } catch (error) {
+                    console.error('Erro no upload:', error);
+                    if (nomeArquivoSpan.parentNode) {
+                        nomeArquivoSpan.textContent = `Erro ao enviar ${file.name}: ${error.message}`;
+                        nomeArquivoSpan.className = 'text-sm text-red-500';
+                    }
                 }
-                reader.readAsDataURL(file);
+            }
+
+            // Limpar input após uploads
+            input.value = '';
+        }
+
+        async function removerAnexo(button, caminhoArquivo) {
+            try {
+                const { error } = await window.supabaseClient.storage
+                    .from('connut_storage')
+                    .remove([caminhoArquivo]);
+
+                if (error) throw error;
+                
+                // Remover o elemento do DOM com animação
+                const elementoAnexo = button.parentElement;
+                elementoAnexo.style.transition = 'all 0.3s';
+                elementoAnexo.style.opacity = '0';
+                setTimeout(() => {
+                    elementoAnexo.remove();
+                }, 300);
+            } catch (error) {
+                console.error('Erro ao remover anexo:', error);
+                alert('Erro ao remover o arquivo. Por favor, tente novamente.');
             }
         }
 
@@ -459,13 +552,19 @@
             const formData = new FormData();
             formData.append('dados', JSON.stringify(dadosChecklist));
 
+            const anexos = [];
             questoes.forEach((questao, index) => {
                 const inputAnexo = questao.querySelector('input[type="file"]');
-                if (inputAnexo && inputAnexo.files.length > 0) {
-                    formData.append(`anexo_${index + 1}`, inputAnexo.files[0]);
-                    console.log(`Anexo adicionado para questão ${index + 1}`);  // Log para debug
+                if (inputAnexo && inputAnexo.dataset.arquivoPath) {
+                    anexos.push({
+                        questaoId: index + 1,
+                        arquivoPath: inputAnexo.dataset.arquivoPath,
+                        publicUrl: inputAnexo.dataset.publicUrl
+                    });
                 }
             });
+
+            dadosChecklist.anexos = anexos;
 
             fetch('/salvar-checklist', {
                 method: 'POST',
@@ -685,6 +784,33 @@
                 resultadoDiv.className = 'p-4 rounded-lg text-white font-bold text-center bg-red-500';
             }
         }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Verificar se o Supabase foi inicializado corretamente
+            if (window.supabase) {
+                console.log('Supabase está pronto para uso');
+            } else {
+                console.error('Erro: Supabase não foi inicializado corretamente');
+            }
+        });
+
+        // Adicione esta função no final do arquivo
+        function verificarStatusSupabase() {
+            if (window.supabaseClient) {
+                console.log('Status do cliente Supabase:', {
+                    initialized: true,
+                    hasStorage: !!window.supabaseClient.storage,
+                    hasFrom: !!(window.supabaseClient.storage && window.supabaseClient.storage.from)
+                });
+            } else {
+                console.error('Cliente Supabase não inicializado');
+            }
+        }
+
+        // Chame esta função quando a página carregar
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(verificarStatusSupabase, 1000); // Verifica após 1 segundo
+        });
     </script>
 </body>
 </html>
