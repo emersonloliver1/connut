@@ -22,5 +22,4 @@ requests==2.31.0
 Flask-Mail==0.10.0
 supabase==1.0.3
 postgrest-py==0.10.6
-python-magic-bin==0.4.14
 psycopg2-binary==2.9.9
