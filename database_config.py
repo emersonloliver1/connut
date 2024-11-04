@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 import logging
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
+from flask_sqlalchemy import SQLAlchemy
 
 load_dotenv()
 logging.basicConfig(level=logging.DEBUG)
@@ -29,3 +30,6 @@ ssl_args = {
 
 # Criar a base declarativa
 Base = declarative_base()
+
+# Criar instância do SQLAlchemy
+db = SQLAlchemy()
