@@ -47,4 +47,4 @@ ENV PORT=8080
 ENV HOST=0.0.0.0
 
 # Comando para rodar a aplicação
-CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 main:app
+CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 "main:app"
