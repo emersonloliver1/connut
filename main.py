@@ -882,18 +882,12 @@ def update_all_passwords():
 MAILGUN_API_KEY = os.getenv('MAILGUN_API_KEY')
 MAILGUN_DOMAIN = os.getenv('MAILGUN_DOMAIN')
 
-def send_email(to_email, subject, content):
-    return requests.post(
-        f"https://api.mailgun.net/v3/{MAILGUN_DOMAIN}/messages",
-        auth=("api", MAILGUN_API_KEY),
-        data={"from": f"CONNUT <mailgun@{MAILGUN_DOMAIN}>",
-              "to": [to_email],
-              "subject": subject,
-              "html": content})
+# Remova ou comente a linha que define send_email
+# def send_email(to, subject, content):
+#     ...
 
-# Modifique a função reset_password_request para usar send_email
-
-reset_password_bp = init_reset_password(app, send_email)
+# Atualize a chamada da função init_reset_password
+reset_password_bp = init_reset_password(app)  # Removido o segundo argumento
 app.register_blueprint(reset_password_bp)
 
 def generate_signed_url(blob_name):

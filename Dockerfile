@@ -15,6 +15,8 @@ RUN apt-get update && apt-get install -y \
     libgdk-pixbuf2.0-0 \
     shared-mime-info \
     mime-support \
+    pkg-config \
+    libcairo2-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copia os arquivos de requisitos primeiro
